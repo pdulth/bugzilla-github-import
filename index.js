@@ -235,7 +235,8 @@ var bugzilla = {
 				}
 			}
 		}
-		
+
+		result = result.replace(/https:\/\/polarsys.org\/bugs\/show_bug.cgi\?id=([^\n]+)/g, "[#$1](https://github.com/"+bugzilla.config.repository+"/search?q=$1&type=Issues)");
 		result = result.replace(/http:\/\/git.polarsys.org\/c\/capella\/capella.git\/commit\/\?id=([^\n]+)/g, "[$1](https://github.com/"+bugzilla.config.repository+"/search?q=$1&type=Commits)");
 		result = result.replace(/Gerrit change https:\/\/git.polarsys.org\/r\/\d+ was m/g, "M");
 		result = result.replace(/(I[0-9a-z]{40})/g, "[$1](https://github.com/"+bugzilla.config.repository+"/search?q=$1&type=Commits)");
@@ -252,13 +253,87 @@ fsquery.read("config.json").then(e => initConfig(JSON.parse(e))).catch(e => {
 	console.log("Error");
 });
 
+function createIssues(ghIssues, issues, miles) {
+	let last = ghIssues[0].number + 1;
+
+	let nextIds = Array(30).fill(0).map((e,i)=>i+last);
+	Promise.all(nextIds.map(i => createIssue(i, issues, miles))).then(e => {
+		console.log('ok');
+	}).catch(e => {
+		console.log("error");
+	})
+//	createIssue(last, issues, miles);
+}
+
+function createIssue(id, issues, miles) {
+	return new Promise((resolve, reject) => {
+		setTimeout(function () {
+			let bissue = issues.find(i => i.status_whiteboard._text == ""+id);
+			console.log("edee");
+			console.log(id);
+			console.log(bissue);
+				if (bissue == undefined) {
+				let issue = {
+					"title": "Issue not related to Capella",
+					"labels": ["to-delete"]
+				};
+				httpquery.postJson("api.github.com", '/repos/pdulth/tmp1/issues', issue).then(ee => {
+					console.log("create unknown issue");
+					resolve(ee);
+				}).catch(ee => {
+					reject(ee);
+				});
+
+				} else {
+					let issue = {
+					"title": bissue.short_desc._text,
+					"labels": []
+				};
+
+				let comments = {
+					"body": bugzilla.getFullText(bissue, false)
+				};
+				if (Array.isArray(bissue.long_desc)) {
+					issue.body = bugzilla.getFullText(bissue, true);
+				}
+
+				issue.labels.push("severity-"+bissue.bug_severity._text);
+				
+				let status = bugzilla.getStatus(bissue);
+				issue.labels.push("status-"+bugzilla.getStatus(bissue));
+				
+				let mil = miles.find(x => x.title==bissue.target_milestone._text);
+				if (mil != null && mil != undefined){
+					issue.milestone = mil.number;
+				}
+				console.log(issue);
+				
+				httpquery.postJson("api.github.com", '/repos/pdulth/tmp1/issues', issue).then(ee => {
+					if (comments.body.length>0) {
+						//post comments. we wait a bit, otherwise labels are logged after comments
+						setTimeout(function () {
+							httpquery.postJson("api.github.com", '/repos/pdulth/tmp1/issues/'+ee.number+'/comments', comments).then(ee2 => {
+								resolve(ee2);
+							}).catch(ee2 => {
+								reject(ee2);
+							});
+						}, 500);
+					}
+				}).catch(ee => {
+					reject(ee);
+				});
+			}
+		}, 500);
+	});
+}
+
 function initConfig(config) {
 	httpquery.user = config.user;
 	httpquery.password = config.password;
 	github.config = config;
 	bugzilla.config = config;
 
-	fsquery.read("bugs.json").then(function e(ee) {
+	fsquery.read("bugs.json").then(ee => {
 		
 		const obj = JSON.parse(ee);
 		console.log(obj._doctype);
@@ -275,50 +350,19 @@ function initConfig(config) {
 		milestones = milestones.filter(v => v[0] != '0');
 
 		github.createMilestones(milestones).then(miles => {
-			console.log(e);
 			
 			//console.log(miles);
-			issues = issues.filter(i => Array.isArray(i.long_desc)).filter(i => i.long_desc.length > 7);
-			for (i=0; i<issues.length; i++) {
-					
-					let issue = {
-						"title": issues[i].short_desc._text,
-						"labels": []
-					};
-					let comments = {
-						"body": bugzilla.getFullText(issues[i], false)
-					};
-
-					if (Array.isArray(issues[i].long_desc)) {
-						issue.body = bugzilla.getFullText(issues[i], true);
-					}
-
-					issue.labels.push("severity-"+issues[i].bug_severity._text);
-					
-					let status = bugzilla.getStatus(issues[i]);
-					issue.labels.push("status-"+bugzilla.getStatus(issues[i]));
-					
-					let mil = miles.find(x => x.title==issues[i].target_milestone._text);
-					if (mil != null && mil != undefined){
-						issue.milestone = mil.number;
-					}
-					console.log(issue);
-					
-					httpquery.postJson("api.github.com", '/repos/pdulth/tmp1/issues', issue).then(function e(ee) {
-						if (comments.body.length>0) {
-							httpquery.postJson("api.github.com", '/repos/pdulth/tmp1/issues/'+ee.number+'/comments', comments).then(function e(ee2) {
-							}).catch(function e(ee2) {
-								console.log(ee2);
-							});
-						}
-					}).catch(function e(ee) {
-						console.log(ee);
-					});
-					if (i==0) {
-						return true;
-					}
-				}
+			issues = issues.filter(i => Array.isArray(i.long_desc)); //.filter(i => i.long_desc.length > 7);
 			
+			httpquery.get("api.github.com", '/repos/pdulth/tmp1/issues').then( ghIssues => createIssues(ghIssues, issues, miles)).catch(ee => {
+				console.log(ee);
+			});
+			
+			/*for (i=0; i<issues.length; i++) {
+					
+					
+				}
+			*/
 			
 		});
 
