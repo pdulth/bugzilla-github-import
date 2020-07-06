@@ -153,8 +153,6 @@ var httpquery = {
 		});
 	}
 };
-	
-
 
 
 const concat = (x,y) => x.concat(y)
@@ -453,15 +451,23 @@ function createIssues(ghIssues, issues, miles) {
 
 	console.log(JSON.stringify(ghIssues[0], null, "  "));
 	let last = ghIssues.length == 0 ? 1 : Number(ghIssues[0].body.match(/POLARSYS-(\d+)/g)[0].split("-")[1]) + 1;
-	//let last = 2107; //ghIssues.length == 0 ? 1 : ghIssues[0].number + 1;
+	//let last = ; //ghIssues.length == 0 ? 1 : ghIssues[0].number + 1;
 
-	//retrieve the next bugzilla polarsys id we want to create
-	let nextIds = Array(3000).fill(0).map((e,i)=>i+last);
+	console.log("LAST="+last);
+	//Retrieve the next bugzilla polarsys id we want to create
+	let nextIds = Array(100).fill(0).map((e,i)=>i+last);
 	console.log(nextIds);
 	
+	//Filter to existing issues
+	nextIds = nextIds.filter(id => issues.find(i => i.status_whiteboard != null && ""+i.status_whiteboard._text.trim() == (""+id).trim()) != undefined);
+	
+	console.log(nextIds.length);
+	
+	
+	if (true) {
 	nextIds.reduce((p, theFile) => {
 		return p.then(() => {
-			return createIssue(theFile, issues, miles); //function returns a promise
+			return createClosedIssue(theFile, issues, miles); //function returns a promise
 		}).catch(error => {
 			console.log(error);
 		});
@@ -470,38 +476,72 @@ function createIssues(ghIssues, issues, miles) {
 	}).catch(error => {
 		console.log(error);
 	});
+	
+	}
 
+}
+
+function createMilestoneIssue(id, issues, miles) {
+	return new Promise((resolve, reject) => {
+		createIssue(id, issues, miles).then(ee => {
+			
+			if (ee != undefined) {
+				let bissue = issues.find(i => i.status_whiteboard != null && ""+i.status_whiteboard._text.trim() == (""+id).trim());
+				let milestone = miles.find(x => x.title==bugzilla.getTargetVersion(bissue));
+				if (milestone != null && milestone != undefined) {
+					setTimeout(function () {		
+						httpquery.patch("api.github.com", `/repos/${bugzilla.config.repository}/issues/${ee.number}`, { milestone : milestone.number }).then(ddd => {
+							resolve(ee);
+						}).catch(error => {
+							reject(ee);
+						});
+					}, Math.round(Math.random()*500)+200);
+				} else {
+					resolve(ee);
+				}
+			} else {
+				resolve(ee);
+			}
+		}).catch(error => {
+			reject(error);
+		});
+	});
 }
 
 //create closed issues (same as createIssues, but closed)
 function createClosedIssue(id, issues, miles) {
 	return new Promise((resolve, reject) => {
-		createIssue(id, issues, miles).then(ee => {
-			let issue2 = {
-				"state":"closed"
-			};
-			httpquery.patch("api.github.com", `/repos/${bugzilla.config.repository}/issues/${ee.number}`, issue2).then(function aaa(ddd) {
+		createMilestoneIssue(id, issues, miles).then(ee => {
+			if (ee != undefined) {
+				setTimeout(function () {
+					httpquery.patch("api.github.com", `/repos/${bugzilla.config.repository}/issues/${ee.number}`, { "state":"closed" }).then(ddd => {
+						resolve(ee);
+					}).catch(error => {
+						reject(ee);
+					});
+				}, Math.round(Math.random()*500)+200);
+			} else {
 				resolve(ee);
-			}).catch(error => {
-				reject(ee);
-			});
+			}
 		}).catch(error => {
 			reject(error);
 		});
 	});
-
 }
 
 //create locked closed issues (same as createIssues, but locked and closed)
 function createLockedIssue(id, issues, miles) {
 	return new Promise((resolve, reject) => {
 		createClosedIssue(id, issues, miles).then(ee => {
-			
-			httpquery.put("api.github.com", `/repos/${bugzilla.config.repository}/issues/${ee.number}/lock`, null).then(function aaa(ddd) {
+			if (ee != undefined) {
+				httpquery.put("api.github.com", `/repos/${bugzilla.config.repository}/issues/${ee.number}/lock`, null).then(function aaa(ddd) {
+					resolve(ee);
+				}).catch(error => {
+					reject(ee);
+				});
+			} else {
 				resolve(ee);
-			}).catch(error => {
-				reject(ee);
-			});
+			}
 		}).catch(error => {
 			reject(error);
 		});
@@ -516,7 +556,7 @@ function createIssue(id, issues, miles) {
 	return new Promise((resolve, reject) => {
 		let bissue = issues.find(i => i.status_whiteboard != null && ""+i.status_whiteboard._text.trim() == (""+id).trim());
 		if (bissue == undefined && !createUnknown) {
-			resolve(id);
+			resolve(undefined);
 			return;
 		}
 		setTimeout(function () {
@@ -550,11 +590,6 @@ function createIssue(id, issues, miles) {
 				issue.labels.push(bissue.bug_severity._text);
 				issue.labels.push(bugzilla.getStatus(bissue));
 				
-				let milestone = miles.find(x => x.title==bugzilla.getTargetVersion(bissue));
-				if (milestone != null && milestone != undefined){
-					issue.milestone = milestone.number;
-				}
-
 				console.log(JSON.stringify(issue, null, " "));
 				
 				httpquery.postJson("api.github.com", `/repos/${bugzilla.config.repository}/issues`, issue).then(ee => {
@@ -585,6 +620,7 @@ fsquery.read("config.json").then(e => proceed(JSON.parse(e))).catch(e => { conso
 function proceed(config) {
 	httpquery.user = config.user;
 	httpquery.password = config.password;
+
 	github.config = config;
 	bugzilla.config = config;
 	
@@ -600,7 +636,7 @@ function proceed(config) {
 
 	//Load attachments for a given repository
 	/*
-	fsquery.read("bugs-polarsys.json").then(ee => {
+	fsquery.read(bugsFile).then(ee => {
 		
 		const obj = JSON.parse(ee);
 		console.log(obj._doctype);
@@ -630,6 +666,9 @@ function proceed(config) {
 			'Rec-Rpl', 'Releng', 'Test framework',
 			'Transition', 'UI'
 		];
+		/*let includedComponents = [
+			'RequirementsVP'
+		];*/
 
 		//all (unused, just for information)
 		let allComponents2 = [ 
@@ -653,13 +692,14 @@ function proceed(config) {
 		issues = issues.filter(i => includedComponents.includes(i.component._text));
 		console.log(issues.length);
 		
+		let products = Array.from(new Set(issues.map(i => i.product._text).sort()));
+		console.log("Keeped products");
+		console.log(products);
+
 		let components =  Array.from(new Set(issues.map(i => i.component._text).sort()));
 		console.log("Keeped components");
 		console.log(components);
 		
-		let products = Array.from(new Set(issues.map(i => i.product._text).sort()));
-		console.log(products);
-
 		let milestones = Array.from(new Set(issues.map(i => bugzilla.getUsedVersions(i)).reduce(concat, []))).sort();
 
 		//create a default array of [description] if empty or if only one description
@@ -680,7 +720,7 @@ function proceed(config) {
 
 		issues.filter(i => i.attachment != undefined && !Array.isArray(i.attachment)).forEach(i => i.attachment = [i.attachment]); //.filter(i => i.long_desc.length > 7);
 		
-		//issues = issues.map(i => i.status_whiteboard._text).join("\n");
+		//issues = issues.map(i => i.status_whiteboard._text).sort().join("\n");
 		//console.log(issues);
 		console.log(milestones);
 
@@ -691,6 +731,7 @@ function proceed(config) {
 			console.log(miles);
 			httpquery.get("api.github.com", `/repos/${github.config.repository}/issues?state=all`)
 				.then( ghIssues => createIssues(ghIssues, issues, miles)).catch(ee => {
+					console.log("error");
 					console.log(ee);
 			});
 			
