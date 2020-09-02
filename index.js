@@ -616,7 +616,11 @@ function createClosedIssue(id, issues, miles) {
 			if (ee != undefined) {
 				setTimeout(function () {
 					httpquery.patch("api.github.com", `/repos/${bugzilla.config.repository}/issues/${ee.number}`, { "state":"closed" }).then(ddd => {
-						resolve(ee);
+						console.log("ok for "+id);
+						setTimeout(function () {
+							resolve(ee);
+						}, Math.round(Math.random()*500)+200);
+						
 					}).catch(error => {
 						reject(ee);
 					});
@@ -667,7 +671,7 @@ function createIssue(id, issues, miles) {
 				console.log("create unknown issue");
 				let issue = {
 					"title": "Issue not related to Capella",
-					"labels": ["to-delete"]
+					"labels": []
 				};
 				httpquery.postJson("api.github.com", `/repos/${bugzilla.config.repository}/issues`, issue).then(ee => {
 					resolve(ee);
@@ -686,27 +690,40 @@ function createIssue(id, issues, miles) {
 				};
 				issue.body = bugzilla.getFullText(bissue, true);
 
-				issue.labels.push(bugzilla.labelProduct(bissue));
-				issue.labels.push(bugzilla.labelComponent(bissue));
-				issue.labels.push(bissue.bug_severity._text);
-				issue.labels.push(bugzilla.getStatus(bissue));
-				
 				console.log(JSON.stringify(issue, null, " "));
 				
 				httpquery.postJson("api.github.com", `/repos/${bugzilla.config.repository}/issues`, issue).then(ee => {
 					
-					//post comments if any. we wait a bit, otherwise labels are logged after comments
-					if (comments.body.length>0) {
-						setTimeout(function () {
-							httpquery.postJson("api.github.com", `/repos/${bugzilla.config.repository}/issues/${ee.number}/comments`, comments).then(ee2 => {
+					let issue2 = {
+						"labels": []
+					};
+					issue2.labels.push(bugzilla.labelProduct(bissue));
+					issue2.labels.push(bugzilla.labelComponent(bissue));
+					issue2.labels.push(bissue.bug_severity._text);
+					issue2.labels.push(bugzilla.getStatus(bissue));
+					
+					setTimeout(function () {
+					
+						httpqueryc.postJson("api.github.com", `/repos/${bugzilla.config.repository}/issues/${ee.number}`, issue2).then(ee => {
+						
+							//post comments if any. we wait a bit, otherwise labels are logged after comments
+							if (comments.body.length>0) {
+								setTimeout(function () {
+									httpquery.postJson("api.github.com", `/repos/${bugzilla.config.repository}/issues/${ee.number}/comments`, comments).then(ee2 => {
+										resolve(ee);
+									}).catch(ee2 => {
+										reject(ee);
+									});
+								}, Math.round(Math.random()*2000)+670);
+							} else {
 								resolve(ee);
-							}).catch(ee2 => {
-								reject(ee);
-							});
-						}, Math.round(Math.random()*2000)+670);
-					} else {
-						resolve(ee);
-					}
+							}
+						}).catch(error => {
+							reject(error);
+						});
+					
+					}, Math.round(Math.random()*2000)+670);
+					
 				}).catch(error => {
 					reject(error);
 				});
