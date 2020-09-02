@@ -150,6 +150,111 @@ var httpquery = {
 	}
 };
 
+var httpqueryc = {
+	
+	getHttp: function(file) {
+		return httpqueryc.request(file.host, file.path, "html");
+	},
+	
+	getFile: function(file) {
+		let type = file.type ? file.type : "json";
+		return httpqueryc.request(file.host, file.path, type, undefined, "GET");
+	},
+	
+	get: function(host, path) {
+		return httpqueryc.request(host, path, "json", undefined, "GET");
+	},
+	
+	postJson: function(host, path, object) {
+		return httpqueryc.request(host, path, "json", object, 'POST');
+	},
+	
+	put: function(host, path, object) {
+		return httpqueryc.request(host, path, null, object, "PUT");
+	},
+	
+	patch: function(host, path, object) {
+		return httpqueryc.request(host, path, "json", object, "PATCH");
+	},
+	
+	downloadFile : function(host, path, outputFile) {
+		return new Promise((resolve, reject) => {
+			var options = {
+				host: host,
+				port: 443,
+				path: path
+			};
+		
+			var file = fs.createWriteStream(outputFile);
+			https.get(options, function(res) {
+			res.on('data', function(data) {
+				file.write(data);
+			}).on('end', function() {
+				file.end();
+				resolve(outputFile);
+			});
+			}).on('error', function(e) {
+				console.log("Got error: " + e.message);
+				reject(e);
+			});
+		});
+	},
+
+	request: function(host, path, kind, object, method) {
+		return new Promise((resolve, reject) => {
+			
+			var data = undefined; 
+			if (object != undefined) {
+				data = JSON.stringify(object);
+			}
+			var options = {
+				host: host,
+				port: 443,
+				path: path,
+				method: method,
+				headers: { }
+			};
+			if (data != undefined) {
+				options.headers['Content-Type'] = 'application/json';
+				options.headers['Content-Length'] = Buffer.byteLength(data);
+			}
+			
+			if (httpqueryc.user) {
+				options.headers["User-Agent"] = httpqueryc.user;
+			}
+			if (httpqueryc.password) {
+				options.headers["Authorization"] = "Basic "+Buffer.from(httpqueryc.user+":"+httpqueryc.password).toString("base64");
+			}
+			
+			console.log(options);
+			var req = https.request(options, function(res) {
+			    let body = '';
+			    res.on('data', function(chunk) {
+			    	body += chunk;
+			    });
+			    res.on('end', function() {
+					//console.log(JSON.stringify(res.headers, null, " "));
+					if (kind == "json") {
+						result = JSON.parse(body);
+					} else {
+						result = body;
+					}
+					resolve(result);
+			    });
+				
+			}).on('error', function(e) {
+				console.log("Got error: " + e.message);
+				reject(e);
+			});
+
+			if (data != undefined) {
+				req.write(data);
+			}
+			req.end();
+		});
+	}
+};
+
 
 const concat = (x,y) => x.concat(y)
 
@@ -185,7 +290,7 @@ var github = {
 
 	//Create a new milestone on the configured repository
 	createMilestone: function(milestone) {
-		return httpquery.postJson("api.github.com", '/repos/'+github.config.repository+'/milestones', milestone);
+		return httpqueryc.postJson("api.github.com", '/repos/'+github.config.repository+'/milestones', milestone);
 	},
 	
 	//Get all existing milestones from the configured repository
@@ -451,7 +556,7 @@ function createIssues(ghIssues, issues, miles) {
 
 	console.log("LAST="+last);
 	//Retrieve the next bugzilla polarsys id we want to create
-	let nextIds = Array(100).fill(0).map((e,i)=>i+last);
+	let nextIds = Array(bugzilla.config.count).fill(0).map((e,i)=>i+last);
 	console.log(nextIds);
 	
 	//Filter to existing issues
@@ -486,7 +591,7 @@ function createMilestoneIssue(id, issues, miles) {
 				let milestone = miles.find(x => x.title==bugzilla.getTargetVersion(bissue));
 				if (milestone != null && milestone != undefined) {
 					setTimeout(function () {		
-						httpquery.patch("api.github.com", `/repos/${bugzilla.config.repository}/issues/${ee.number}`, { milestone : milestone.number }).then(ddd => {
+						httpqueryc.patch("api.github.com", `/repos/${bugzilla.config.repository}/issues/${ee.number}`, { milestone : milestone.number }).then(ddd => {
 							resolve(ee);
 						}).catch(error => {
 							reject(ee);
@@ -616,6 +721,9 @@ fsquery.read("config.json").then(e => proceed(JSON.parse(e))).catch(e => { conso
 function proceed(config) {
 	httpquery.user = config.user;
 	httpquery.password = config.password;
+
+	httpqueryc.user = config.userCommiter;
+	httpqueryc.password = config.passwordCommiter;
 
 	github.config = config;
 	bugzilla.config = config;
