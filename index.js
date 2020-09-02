@@ -549,17 +549,21 @@ var bugzilla = {
 function createIssues(ghIssues, issues, miles) {
 
 	console.log(JSON.stringify(ghIssues[0], null, "  "));
-	let last = ghIssues.length == 0 ? 1 : Number(ghIssues[0].body.match(/POLARSYS-(\d+)/g)[0].split("-")[1]) + 1;
+	let last = ghIssues.length == 0 ? 1 : Number(ghIssues[0].body.match(/`ECLIPSE-(\d+)/g)[0].split("-")[1]) + 1;
 	//let last = ; //ghIssues.length == 0 ? 1 : ghIssues[0].number + 1;
 
 	console.log("LAST="+last);
 	//Retrieve the next bugzilla polarsys id we want to create
-	let nextIds = Array(bugzilla.config.count).fill(0).map((e,i)=>i+last);
+	let nextIds = Array(20000).fill(552000).map((e,i)=>i+last);
+	
+	console.log(nextIds.length);
 	console.log(nextIds);
-	
 	//Filter to existing issues
-	nextIds = nextIds.filter(id => issues.find(i => i.status_whiteboard != null && ""+i.status_whiteboard._text.trim() == (""+id).trim()) != undefined);
+	nextIds = nextIds.filter(id => issues.find(i => i.bug_id != null && ""+i.bug_id._text.trim() == (""+id).trim()) != undefined);
 	
+	nextIds = nextIds.slice(0, bugzilla.config.count);
+	
+	console.log(bugzilla.config.count);
 	console.log(nextIds.length);
 	
 	
@@ -585,7 +589,7 @@ function createMilestoneIssue(id, issues, miles) {
 		createIssue(id, issues, miles).then(ee => {
 			
 			if (ee != undefined) {
-				let bissue = issues.find(i => i.status_whiteboard != null && ""+i.status_whiteboard._text.trim() == (""+id).trim());
+				let bissue = issues.find(i => i.bug_id != null && ""+i.bug_id._text.trim() == (""+id).trim());
 				let milestone = miles.find(x => x.title==bugzilla.getTargetVersion(bissue));
 				if (milestone != null && milestone != undefined) {
 					setTimeout(function () {		
@@ -618,8 +622,9 @@ function createClosedIssue(id, issues, miles) {
 					
 					setTimeout(function () {
 						httpquery.patch("api.github.com", `/repos/${bugzilla.config.repository}/issues/${ee.number}`, { "state":"closed" }).then(ddd => {
+							console.log("https://bugs.eclipse.org/bugs/show_bug.cgi?id="+id);
 							console.log(ee.url);
-							console.log("close issue "+id);
+							console.log("close issue "+id+"\n\n");
 							setTimeout(function () {
 								resolve(ee);
 							}, Math.round(Math.random()*500)+200);
@@ -630,7 +635,8 @@ function createClosedIssue(id, issues, miles) {
 					}, Math.round(Math.random()*500)+200);
 				} else {
 					console.log("https://bugs.eclipse.org/bugs/show_bug.cgi?id="+id);
-					console.log("kept opened for "+id);
+					console.log(ee.url);
+					console.log("kept opened for "+id+"\n\n");
 					resolve(ee);
 				}
 			} else {
@@ -667,7 +673,7 @@ function createIssue(id, issues, miles) {
 	let createUnknown = false;
 
 	return new Promise((resolve, reject) => {
-		let bissue = issues.find(i => i.status_whiteboard != null && ""+i.status_whiteboard._text.trim() == (""+id).trim());
+		let bissue = issues.find(i => i.bug_id != null && ""+i.bug_id._text.trim() == (""+id).trim());
 		if (bissue == undefined && !createUnknown) {
 			resolve(undefined);
 			return;
