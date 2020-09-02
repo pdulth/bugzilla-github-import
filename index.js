@@ -481,7 +481,7 @@ var bugzilla = {
 					if (attachment != null) {
 						let file = bugzilla.attachmentName(attachment);
 						let image = bugzilla.isAttachmentImage(attachment) ? "!": "Attachment: ";
-						return `${image}[${attachment.filename._text}](https://raw.githubusercontent.com/wiki/${bugzilla.config.repository}/attachments/${file})`;
+						return `${image}[${attachment.filename._text}](https://raw.githubusercontent.com/wiki/eclipse/capella/attachments/${file})`;
 					}
 					return "See attachment";
 				});
@@ -561,8 +561,6 @@ function createIssues(ghIssues, issues, miles) {
 	//Retrieve the next bugzilla polarsys id we want to create
 	let nextIds = Array(20000).fill(553880).map((e,i)=>i+nextBugzillaId);
 	
-	console.log(nextIds.length);
-	console.log(nextIds);
 	//Filter to existing issues
 	nextIds = nextIds.filter(id => issues.find(i => i.bug_id != null && ""+i.bug_id._text.trim() == (""+id).trim()) != undefined);
 	
@@ -570,6 +568,7 @@ function createIssues(ghIssues, issues, miles) {
 	
 	console.log(bugzilla.config.count);
 	console.log(nextIds.length);
+	console.log(nextIds);
 	
 	
 	if (true) {
@@ -776,10 +775,9 @@ function proceed(config) {
 
 	//Load attachments for a given repository
 	/*
-	fsquery.read(bugsFile).then(ee => {
+	fsquery.read(config.bugsFile).then(ee => {
 		
 		const obj = JSON.parse(ee);
-		console.log(obj._doctype);
 		let issues = obj.bugzilla.bug;
 
 		let includedProducts = [ "Capella", "Kitalpha" ];
@@ -789,34 +787,35 @@ function proceed(config) {
 		issues.filter(i => i.attachment != undefined).forEach(i => bugzilla.downloadAttachments(i)); //.filter(i => i.long_desc.length > 7);
 		
 		//fsquery.write("bugs-polarsys-repo.json", result);
-	});
-	*/
-
-	//if (true) return;
-
+	});*/
+	
 	//Load issues
-	fsquery.read("bugs-polarsys.json").then(json => {
+	fsquery.read(config.bugsFile).then(json => {
 		
-		let includedProducts = [ "Capella" ]; // "Kitalpha"
+		let includedProducts = config.includedProducts; // "Kitalpha"
 		
-		let includedComponents = [
-			'Capella Gitadapter', 'Core', 'Detachment', 'Diagram', 'Diff-Merge',
-			'Documentation', 'General', 'Groovy', 'Library',
-			'ModelValidation', 'Patterns', 'Properties',
-			'Rec-Rpl', 'Releng', 'Test framework',
-			'Transition', 'UI'
-		];
+		let includedComponents = config.includedComponents;
 		/*let includedComponents = [
-			'RequirementsVP'
+			"Capella Gitadapter", "Core", "Detachment", "Diagram", "Diff-Merge",
+			"Documentation", "General", "Groovy", "Library",
+			"ModelValidation", "Patterns", "Properties",
+			"Rec-Rpl", "Releng", "Test framework",
+			"Transition", "UI"
+		];*/
+		/*let includedComponents = [
+			"RequirementsVP"
+		];*/
+		/*let includedComponents = [
+			'System2Subsystem'
 		];*/
 
 		//all (unused, just for information)
 		let allComponents2 = [ 
-			'Capella Gitadapter', 'Capella Studio', 'Core', 'Detachment', 'Diagram', 'Diff-Merge',
-			'Documentation', 'Forum', 'GenDoc HTML', 'General', 'Groovy', 'Library',
-			'Mass VP', 'ModelValidation', 'Patterns', 'Perfo VP', 'Price VP', 'Properties',
-			'Rec-Rpl', 'Releng', 'RequirementsVP', 'System2Subsystem', 'Test framework',
-			'Transition', 'UI', 'Website', 'XML Pivot' 
+			"Capella Gitadapter", "Capella Studio", "Core", "Detachment", "Diagram", "Diff-Merge",
+			"Documentation", "Forum", "GenDoc HTML", "General", "Groovy", "Library",
+			"Mass VP", "ModelValidation", "Patterns", "Perfo VP", "Price VP", "Properties",
+			"Rec-Rpl", "Releng", "RequirementsVP", "System2Subsystem", "Test framework",
+			"Transition", "UI", "Website", "XML Pivot" 
 		];
 
 		let issues = JSON.parse(json).bugzilla.bug;
