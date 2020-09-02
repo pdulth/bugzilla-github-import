@@ -552,13 +552,14 @@ var bugzilla = {
 //based on the latests github issues, and the all issues from bugzilla, create the next batch of issues to github
 function createIssues(ghIssues, issues, miles) {
 
-	console.log(JSON.stringify(ghIssues[0], null, "  "));
-	let last = ghIssues.length == 0 ? 1 : Number(ghIssues[0].body.match(/`ECLIPSE-(\d+)/g)[0].split("-")[1]) + 1;
+	//filter github issues to have only imported ones. (with a ECLIPSE-XXX tag)
+	let previousImportedIssues = ghIssues.filter(x => x.body.match(/`ECLIPSE/g));
+	let nextBugzillaId = previousImportedIssues.length == 0 ? 553888 : Number(previousImportedIssues[0].body.match(/`ECLIPSE-(\d+)/g)[0].split("-")[1]) + 1; //553888 is the first polarsys issue.
 	//let last = ; //ghIssues.length == 0 ? 1 : ghIssues[0].number + 1;
 
-	console.log("LAST="+last);
+	console.log("nextBugzillaId="+nextBugzillaId);
 	//Retrieve the next bugzilla polarsys id we want to create
-	let nextIds = Array(20000).fill(552000).map((e,i)=>i+last);
+	let nextIds = Array(20000).fill(553880).map((e,i)=>i+nextBugzillaId);
 	
 	console.log(nextIds.length);
 	console.log(nextIds);
