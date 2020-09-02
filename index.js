@@ -125,7 +125,6 @@ var httpquery = {
 				options.headers["Authorization"] = "Basic "+Buffer.from(httpquery.user+":"+httpquery.password).toString("base64");
 			}
 			
-			console.log(options);
 			var req = https.request(options, function(res) {
 			    let body = '';
 			    res.on('data', function(chunk) {
@@ -230,7 +229,6 @@ var httpqueryc = {
 				options.headers["Authorization"] = "Basic "+Buffer.from(httpqueryc.user+":"+httpqueryc.password).toString("base64");
 			}
 			
-			console.log(options);
 			var req = https.request(options, function(res) {
 			    let body = '';
 			    res.on('data', function(chunk) {
@@ -617,18 +615,28 @@ function createMilestoneIssue(id, issues, miles) {
 function createClosedIssue(id, issues, miles) {
 	return new Promise((resolve, reject) => {
 		createMilestoneIssue(id, issues, miles).then(ee => {
+			
 			if (ee != undefined) {
-				setTimeout(function () {
-					httpquery.patch("api.github.com", `/repos/${bugzilla.config.repository}/issues/${ee.number}`, { "state":"closed" }).then(ddd => {
-						console.log("ok for "+id);
-						setTimeout(function () {
-							resolve(ee);
-						}, Math.round(Math.random()*500)+200);
-						
-					}).catch(error => {
-						reject(ee);
-					});
-				}, Math.round(Math.random()*500)+200);
+				let labels = ee.labels.map(l => l.name);
+				if (labels.includes("verified") || labels.includes("closed") || labels.includes("resolved") || labels.includes("wontfix")) {
+					
+					setTimeout(function () {
+						httpquery.patch("api.github.com", `/repos/${bugzilla.config.repository}/issues/${ee.number}`, { "state":"closed" }).then(ddd => {
+							console.log(ee.url);
+							console.log("close issue "+id);
+							setTimeout(function () {
+								resolve(ee);
+							}, Math.round(Math.random()*500)+200);
+							
+						}).catch(error => {
+							reject(ee);
+						});
+					}, Math.round(Math.random()*500)+200);
+				} else {
+					console.log("https://bugs.eclipse.org/bugs/show_bug.cgi?id="+id);
+					console.log("kept opened for "+id);
+					resolve(ee);
+				}
 			} else {
 				resolve(ee);
 			}
