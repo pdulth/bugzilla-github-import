@@ -456,7 +456,7 @@ var bugzilla = {
 				if (attachment != null) {
 					let file = bugzilla.attachmentName(attachment);
 					let image = bugzilla.isAttachmentImage(attachment) ? "!": "Attachment: ";
-					return `${image}[${attachment.filename._text}](https://raw.githubusercontent.com/wiki/${bugzilla.config.repository}/attachments/${file})`;
+					return `${image}[${attachment.filename._text}](https://raw.githubusercontent.com/wiki/eclipse/capella/attachments/${file})`;
 				}
 				return "See attachment";
 			});
@@ -763,7 +763,7 @@ function proceed(config) {
 	github.config = config;
 	bugzilla.config = config;
 	
-	//bugzilla.parse2json("show_bug.cgi.xml", "bugs2.json");
+	//bugzilla.parse2json("show_bug.cgi-news.xml", "bugs-2020.json");
 	//if (true) return;
 	
 	//List contributors of the given repository
