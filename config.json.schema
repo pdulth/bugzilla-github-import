@@ -1,5 +1,15 @@
 {
-	"user":"text",
-	"password":"text",
-	"repository":"owner/repository"
+	"user":"",
+	"password":"",
+	"userCommiter":"",
+	"passwordCommiter":"",
+	"repository": "xxxx/test",
+	"bugsFile": "show_bug.cgi.json",
+	"count": 3000,
+	"includedProducts": [ "Capella", "Kitalpha" ],
+	"includedComponents": [ "Capella Gitadapter", "Capella Studio", "Core", "Detachment", "Diagram", "Diff-Merge",
+		"Documentation", "Filtering", "Forum", "GenDoc HTML", "General", "Groovy", "Library",
+		"Mass VP", "ModelValidation", "Modes/States VP", "Patterns", "Perfo VP", "Price VP", "Properties",
+		"Rec-Rpl", "Releng", "RequirementsVP", "System2Subsystem", "Test framework", "Textual editor",
+		"Transition", "UI", "Website", "XML Pivot", "AF and VP", "Build", "CTK", "CTK/Doc"  ]
 }

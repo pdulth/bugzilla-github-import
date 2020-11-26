@@ -4,7 +4,6 @@ var fs = require("fs");
 //helpers for files manipulation
 var fsquery = {
 		
-	// https://stackoverflow.com/questions/31978347/fs-writefile-in-a-promise-asynchronous-synchronous-stuff
 	write: function (filename, data) {
 		return new Promise(function(resolve, reject) {
 			fs.writeFile(filename, data, 'UTF-8', function(err) {
@@ -14,7 +13,6 @@ var fsquery = {
 		});
 	},
 	
-	// https://stackoverflow.com/questions/34628305/using-promises-with-fs-readfile-in-a-loop
 	read: function(filename) {
 		return new Promise(function(resolve, reject) {
 			fs.readFile(filename, 'UTF-8', function(err, data){
@@ -24,239 +22,151 @@ var fsquery = {
 					resolve(data);
 			});
 		});
-	},
-	
-	// https://stackoverflow.com/questions/4482686/check-synchronously-if-file-directory-exists-in-node-js
-	fileExists: function(filename) {
-		try
-		{
-			return fs.statSync(filename).isFile();
-		}
-		catch (err)
-		{
-			if (err.code == 'ENOENT') { // no such file or directory. File really does not exist
-			  console.log("File does not exist.");
-			  return false;
-			}
-			return false; // something else went wrong, we don't have rights, ...
-		}
 	}
 };
-	
-	
+
 //helpers for http requests
+var httpq = {
+	
+	downloadFile : function(host, path, outputFile) {
+		return new Promise((resolve, reject) => {
+			var options = {
+				host: host,
+				port: 443,
+				path: path
+			};
+		
+			var file = fs.createWriteStream(outputFile);
+			https.get(options, function(res) {
+			res.on('data', function(data) {
+				file.write(data);
+			}).on('end', function() {
+				file.end();
+				resolve(outputFile);
+			});
+			}).on('error', function(e) {
+				console.log("Got error: " + e.message);
+				reject(e);
+			});
+		});
+	},
+
+	request: function(host, path, kind, object, method, user, password) {
+		return new Promise((resolve, reject) => {
+			
+			var data = undefined; 
+			if (object != undefined) {
+				data = JSON.stringify(object);
+			}
+			var options = {
+				host: host,
+				port: 443,
+				path: path,
+				method: method,
+				headers: { }
+			};
+			if (data != undefined) {
+				options.headers['Content-Type'] = 'application/json';
+				options.headers['Content-Length'] = Buffer.byteLength(data);
+			}
+			
+			if (user) {
+				options.headers["User-Agent"] = user;
+			}
+			if (password) {
+				options.headers["Authorization"] = "Basic "+Buffer.from(user+":"+password).toString("base64");
+			}
+			
+			var req = https.request(options, function(res) {
+			    let body = '';
+			    res.on('data', function(chunk) {
+			    	body += chunk;
+			    });
+			    res.on('end', function() {
+					//console.log(JSON.stringify(res.headers, null, " "));
+					if (kind == "json") {
+						result = JSON.parse(body);
+					} else {
+						result = body;
+					}
+					if (result != undefined && result.message != undefined && result.message.includes("Bad credentials")) {
+						reject(result);
+					} else {
+						resolve(result);
+					}
+			    });
+				
+			}).on('error', function(e) {
+				console.log("Got error: " + e.message);
+				reject(e);
+			});
+
+			if (data != undefined) {
+				req.write(data);
+			}
+			req.end();
+		});
+	}
+};
+
+//helpers for http requests for user without commiter rights
+//credentials are set while config load.
 var httpquery = {
 	
-	getHttp: function(file) {
-		return httpquery.request(file.host, file.path, "html");
-	},
-	
-	getFile: function(file) {
-		let type = file.type ? file.type : "json";
-		return httpquery.request(file.host, file.path, type, undefined, "GET");
-	},
-	
 	get: function(host, path) {
-		return httpquery.request(host, path, "json", undefined, "GET");
+		return httpq.request(host, path, "json", undefined, "GET", httpquery.user, httpquery.password);
 	},
 	
 	postJson: function(host, path, object) {
-		return httpquery.request(host, path, "json", object, 'POST');
+		return httpq.request(host, path, "json", object, 'POST', httpquery.user, httpquery.password);
 	},
 	
 	put: function(host, path, object) {
-		return httpquery.request(host, path, null, object, "PUT");
+		return httpq.request(host, path, null, object, "PUT", httpquery.user, httpquery.password);
 	},
 	
 	patch: function(host, path, object) {
-		return httpquery.request(host, path, "json", object, "PATCH");
-	},
-	
-	downloadFile : function(host, path, outputFile) {
-		return new Promise((resolve, reject) => {
-			var options = {
-				host: host,
-				port: 443,
-				path: path
-			};
-		
-			var file = fs.createWriteStream(outputFile);
-			https.get(options, function(res) {
-			res.on('data', function(data) {
-				file.write(data);
-			}).on('end', function() {
-				file.end();
-				resolve(outputFile);
-			});
-			}).on('error', function(e) {
-				console.log("Got error: " + e.message);
-				reject(e);
-			});
-		});
-	},
-
-	request: function(host, path, kind, object, method) {
-		return new Promise((resolve, reject) => {
-			
-			var data = undefined; 
-			if (object != undefined) {
-				data = JSON.stringify(object);
-			}
-			var options = {
-				host: host,
-				port: 443,
-				path: path,
-				method: method,
-				headers: { }
-			};
-			if (data != undefined) {
-				options.headers['Content-Type'] = 'application/json';
-				options.headers['Content-Length'] = Buffer.byteLength(data);
-			}
-			
-			if (httpquery.user) {
-				options.headers["User-Agent"] = httpquery.user;
-			}
-			if (httpquery.password) {
-				options.headers["Authorization"] = "Basic "+Buffer.from(httpquery.user+":"+httpquery.password).toString("base64");
-			}
-			
-			var req = https.request(options, function(res) {
-			    let body = '';
-			    res.on('data', function(chunk) {
-			    	body += chunk;
-			    });
-			    res.on('end', function() {
-					//console.log(JSON.stringify(res.headers, null, " "));
-					if (kind == "json") {
-						result = JSON.parse(body);
-					} else {
-						result = body;
-					}
-					resolve(result);
-			    });
-				
-			}).on('error', function(e) {
-				console.log("Got error: " + e.message);
-				reject(e);
-			});
-
-			if (data != undefined) {
-				req.write(data);
-			}
-			req.end();
-		});
+		return httpq.request(host, path, "json", object, "PATCH", httpquery.user, httpquery.password);
 	}
 };
 
+//helpers for http requests for user with commiter rights
+//credentials are set while config load.
 var httpqueryc = {
 	
-	getHttp: function(file) {
-		return httpqueryc.request(file.host, file.path, "html");
-	},
-	
-	getFile: function(file) {
-		let type = file.type ? file.type : "json";
-		return httpqueryc.request(file.host, file.path, type, undefined, "GET");
-	},
-	
 	get: function(host, path) {
-		return httpqueryc.request(host, path, "json", undefined, "GET");
+		return httpq.request(host, path, "json", undefined, "GET", httpqueryc.user, httpqueryc.password);
 	},
 	
 	postJson: function(host, path, object) {
-		return httpqueryc.request(host, path, "json", object, 'POST');
+		return httpq.request(host, path, "json", object, 'POST', httpqueryc.user, httpqueryc.password);
 	},
 	
 	put: function(host, path, object) {
-		return httpqueryc.request(host, path, null, object, "PUT");
+		return httpq.request(host, path, null, object, "PUT", httpqueryc.user, httpqueryc.password);
 	},
 	
 	patch: function(host, path, object) {
-		return httpqueryc.request(host, path, "json", object, "PATCH");
-	},
-	
-	downloadFile : function(host, path, outputFile) {
-		return new Promise((resolve, reject) => {
-			var options = {
-				host: host,
-				port: 443,
-				path: path
-			};
-		
-			var file = fs.createWriteStream(outputFile);
-			https.get(options, function(res) {
-			res.on('data', function(data) {
-				file.write(data);
-			}).on('end', function() {
-				file.end();
-				resolve(outputFile);
-			});
-			}).on('error', function(e) {
-				console.log("Got error: " + e.message);
-				reject(e);
-			});
-		});
-	},
-
-	request: function(host, path, kind, object, method) {
-		return new Promise((resolve, reject) => {
-			
-			var data = undefined; 
-			if (object != undefined) {
-				data = JSON.stringify(object);
-			}
-			var options = {
-				host: host,
-				port: 443,
-				path: path,
-				method: method,
-				headers: { }
-			};
-			if (data != undefined) {
-				options.headers['Content-Type'] = 'application/json';
-				options.headers['Content-Length'] = Buffer.byteLength(data);
-			}
-			
-			if (httpqueryc.user) {
-				options.headers["User-Agent"] = httpqueryc.user;
-			}
-			if (httpqueryc.password) {
-				options.headers["Authorization"] = "Basic "+Buffer.from(httpqueryc.user+":"+httpqueryc.password).toString("base64");
-			}
-			
-			var req = https.request(options, function(res) {
-			    let body = '';
-			    res.on('data', function(chunk) {
-			    	body += chunk;
-			    });
-			    res.on('end', function() {
-					//console.log(JSON.stringify(res.headers, null, " "));
-					if (kind == "json") {
-						result = JSON.parse(body);
-					} else {
-						result = body;
-					}
-					resolve(result);
-			    });
-				
-			}).on('error', function(e) {
-				console.log("Got error: " + e.message);
-				reject(e);
-			});
-
-			if (data != undefined) {
-				req.write(data);
-			}
-			req.end();
-		});
+		return httpq.request(host, path, "json", object, "PATCH", httpqueryc.user, httpqueryc.password);
 	}
 };
 
 
 const concat = (x,y) => x.concat(y)
 
+//From an array of values and a function returning a promise from a value
+//Execute promises sequentially (Promise.all doesn't run sequentially)
+function consecutive(values, fPromise) {
+	return values.reduce((p, value) => {
+		return p.then(() => {
+			return fPromise(value);
+		}).catch(error => {
+			console.log(error);
+		});
+	}, Promise.resolve());
+}
 
+// dates of milestones
 var dueDates = {
 	"v0.8.0":"2014-12-12T23:17:00Z",
 	"v0.8.1":"2015-04-03T23:17:00Z",
@@ -281,13 +191,18 @@ var dueDates = {
 	"v1.2.2":"2018-12-06T23:17:00Z",
 	"v1.3.0":"2018-10-30T23:17:00Z",
 	"v1.3.1":"2019-05-20T23:17:00Z",
+	"v1.3.2":"2020-02-14T09:48:00Z",
+	"v1.3.3":"2020-07-20T15:36:00Z",
 	"v1.4.0":"2019-11-21T23:17:00Z",
+	"v1.4.1":"2020-06-30T16:03:00Z",
+	"v1.4.2":"2020-10-14T09:08:00Z",
 };
 
 var github = {
 
 	//Create a new milestone on the configured repository
 	createMilestone: function(milestone) {
+		console.log(`create: ${milestone.title}`);
 		return httpqueryc.postJson("api.github.com", '/repos/'+github.config.repository+'/milestones', milestone);
 	},
 	
@@ -296,9 +211,10 @@ var github = {
 		return new Promise((resolve, reject) => {
 			//we suppose that there is at most 3 pages of milestones
 			return Promise.all([1, 2, 3].map(m => httpquery.get("api.github.com", '/repos/'+github.config.repository+'/milestones?state=all&page='+m))).then(e => {
-				resolve(e.reduce(function (arr, row) {
+				let resultPages = e.reduce(function (arr, row) {
 					return arr.concat(row);
-				  }, []));
+				  }, []);
+				resolve(resultPages);
 			}).catch(e => {
 				reject(e);
 			});
@@ -308,43 +224,115 @@ var github = {
 	//Create given milestones if doesn't exist.
 	//bugzillaMilestones, an array of wanted milestones
 	createMilestones: function(bugzillaMilestones) {
+
+		return github.getMilestones()
+		.then((miles) => {
+			let existing=miles.map(m => m.title);
+			console.log("Milestones existing:");
+			console.log(existing);
+			
+			let toCreate = bugzillaMilestones.filter( a => !existing.includes(a));
+			return Promise.resolve(toCreate);
+		}).then(toCreate => {
+			if (toCreate.length == 0) {
+				return Promise.resolve();
+			} else {
+				return consecutive(toCreate, m => github.createMilestone({
+					"title": m,
+					"state": "open",
+					"due_on": dueDates[m]
+				}).then(wait));
+			}
+
+		}).then(e => {
+			return github.getMilestones();
+		});
+	},
+
+	createGithubIssue: function(issue) {
 		return new Promise((resolve, reject) => {
+			let createParameters = {
+				"title": issue.title,
+				"labels": [],
+				"body": issue.body
+			}
+			httpquery.postJson("api.github.com", `/repos/${bugzilla.config.repository}/issues`, createParameters).then(ee => {
+				issue.githubId = ee.number;
+				issue.url = ee.url;
+				resolve(issue);
 
-			github.getMilestones().then((miles) => {
-
-				let existing=miles.map(m => m.title);
-
-				console.log("Milestones existing:");
-				console.log(existing);
-				
-
-				let toCreate = bugzillaMilestones.filter( a => !existing.includes(a));
-				
-				console.log("Milestones to create:");
-				console.log(toCreate);
-				
-				if (toCreate.length == 0) {
-					github.getMilestones().then((allMiles) => {
-						resolve(allMiles);
-					}).catch(e => {
-						reject(e);
-					});
-				} else {
-					return Promise.all(toCreate.map(m => github.createMilestone({
-						"title": m,
-						"state": "open",
-						"due_on": dueDates[m]
-					}))).then(e => {
-						reject("There is still milestones to create");
-					}).catch(e => {
-						reject(e);
-					});
-				}
-			}).catch(function e(ee) {
-				reject(ee);
+			}).catch(error => {
+				reject(error);
 			});
 		});
+	},
 
+	addGithubLabels: function(issue) {
+		return new Promise((resolve, reject) => {
+			httpqueryc.postJson("api.github.com", `/repos/${bugzilla.config.repository}/issues/${issue.githubId}`, { "labels": issue.labels } ).then(ee => {
+				resolve(issue);
+			}).catch(error => {
+				reject(error);
+			});
+		});
+	},
+
+	postGithubComments: function(issue) {
+		return new Promise((resolve, reject) => {
+			if (issue.comments.body.length > 0) {
+				httpquery.postJson("api.github.com", `/repos/${bugzilla.config.repository}/issues/${issue.githubId}/comments`, issue.comments).then(ee => {
+					resolve(issue);
+				}).catch(error => {
+					reject(error);
+				});
+			} else {
+				resolve(ee);
+			}
+		});
+	},
+
+	addGithubMilestone: function(miles, issue) {
+		return new Promise((resolve, reject) => {
+			if (issue.milestoneId != null) {
+				httpqueryc.patch("api.github.com", `/repos/${bugzilla.config.repository}/issues/${issue.githubId}`, { milestone : issue.milestoneId }).then(ee => {
+					resolve(issue);
+				}).catch(error => {
+					reject(error);
+				});
+			} else {
+				resolve(issue);
+			}
+		});
+	},
+
+	closeIssue: function(issue) {
+		return new Promise((resolve, reject) => {
+			if (issue.closeable) {
+				httpquery.patch("api.github.com", `/repos/${bugzilla.config.repository}/issues/${issue.githubId}`, { "state": "closed" }).then(ee => {
+					issue.state = "closed";
+					console.log("https://bugs.eclipse.org/bugs/show_bug.cgi?id="+issue.bugzillaId);
+					console.log(issue.url);
+					console.log("close issue "+issue.bugzillaId+"\n\n");
+					resolve(issue);
+					
+				}).catch(error => {
+					reject(error);
+				});
+			} else {
+				console.log("kept opened "+issue.bugzillaId+"\n\n");
+				resolve(issue);
+			}
+		});
+	},
+
+	lockIssue: function(issue) {
+		return new Promise((resolve, reject) => {
+			httpquery.put("api.github.com", `/repos/${bugzilla.config.repository}/issues/${issue.githubId}/lock`, null).then(ee => {
+				resolve(issue);
+			}).catch(error => {
+				reject(error);
+			});
+		});
 	}
 }
 
@@ -372,39 +360,70 @@ var bugzilla = {
 			result.push(bug.target_milestone._text);
 		}
 		result = result.filter(x => x != '---' && x != 'unspecified');
-		result = result.map(x => "v"+x);
+		result = result.map(x => ""+x);
 		return result;
 	}, 
 	
-	getTargetVersion: function(bug) {
-		let version = "v"+bug.target_milestone._text;
-		if (version == "---") {
-			if (bug.product._text == "Kitalpha") {
-				version = "v"+bug.version._text;
-			}
+	getDetectedVersion: function(bug) {
+		let version = bug.target_milestone._text;
+		if (version == "unspecified" || version == "---") {
+			return null;
 		}
-		return version;
+		return ""+version;
 	},
 
-	//retrieve the status (mix between status and resolution fields)
+	getTargetVersion: function(bug) {
+		let version = bug.target_milestone._text;
+		if (version == "unspecified" || version == "---") {
+			// If there is no target milestone, some products and components are using the version field instead.
+			let productsWithVersionAsTarget = [ "Kitalpha" ];
+			let componentsWithVersionAsTarget = [ "Capella Studio", "GenDoc HTML", "Mass VP", "Perfo VP", "Price VP" ];
+
+			if (bug.bug_status._text == "RESOLVED" || bug.bug_status._text == "VERIFIED" || bug.bug_status._text == "CLOSED") {
+				if (productsWithVersionAsTarget.includes(bug.product._text)) {
+					version = bug.version._text;
+				} else if (componentsWithVersionAsTarget.includes(bug.component._text)) {
+					version = bug.version._text;
+				} else {
+					console.log("A closed issue with no target version (may be an issue or not): "+bug.bug_id._text);
+				}
+			}
+		}
+		if (version == "unspecified" || version == "---") {
+			return null;
+		}
+		return ""+version;
+	},
+
+	// retrieve the status (mix between status and resolution fields)
 	getStatus: function(bug) {
 		let result = "";
 		if (bug.bug_status._text != undefined) {
-			result = bug.bug_status._text.toLowerCase();
+			result = bug.bug_status._text;
 		}
 		if (bug.resolution._text == "WONTFIX") {
-			result = bug.resolution._text.toLowerCase();
+			result = bug.resolution._text;
+		} else if (bug.resolution._text == "DUPLICATE") {
+			result = bug.resolution._text;
+		} else if (bug.resolution._text == "INVALID") {
+			result = bug.resolution._text;
+		} else if (bug.resolution._text == "WORKSFORME") {
+			result = bug.resolution._text;
 		}
-		return result;
+		return result.toLowerCase();
 	}, 
 
-	//retrieve a trigramm of the given user from bugzilla
+	//retrieve a trigram of the given user from bugzilla
 	who: function(who) {
-		let user = who._attributes.name.toLowerCase().replace(/ /g, ".");
-
+		return bugzilla.trigram(who._attributes.name);
+	},
+	
+	trigram: function(user) {
+		user = user.toLowerCase().replace(/ /g, ".");
 		if (user == "nobody.-.feel.free.to.take.it") return "anonymous";
 		if (user == "eclipse.webmaster") return "webmaster";
 		if (user == "polarsys.genie") return "ci-bot";
+		if (user == "eclipse.genie") return "ci-bot";
 
 		if (user.indexOf(".")>0) {
 			user = user.split(".")[0][0]+user.split(".")[1].substring(0, 2);
@@ -415,23 +434,31 @@ var bugzilla = {
 		if (user == "cba") user = "cbd";
 		return user;
 	},
-	
-	//retrieve a label for the component of the bugzilla issue
-	labelComponent: function(issue) {
-		return issue.component._text.replace(/[\/ ]/g, "-").toLowerCase();
+
+	//retrieve a label for the component of the bugzilla bug
+	labelComponent: function(bug) {
+		return bug.component._text;
 	},
 	
-	//retrieve a label for the product of the bugzilla issue
-	labelProduct: function(issue) {
-		return issue.product._text.toLowerCase();
+	//retrieve a label for the product of the bugzilla bug
+	labelProduct: function(bug) {
+		return bug.product._text;
 	},
 	
-	getFullText: function(bug, onlyHeader) {
-		let result = "";
+	getComments: function(bug) {
 		let comments = bug.long_desc.filter(x => x.thetext != undefined && x.thetext._text != undefined);
-		
 		comments = comments.filter(x => !x.thetext._text.startsWith("New Gerrit change created"));
-		
+		return comments;
+	},
+
+	getReporter: function(bug) {
+		return bugzilla.who(bug.reporter);
+	},
+
+	getFullText: function(bug, onlyHeader, issue) {
+		let result = "";
+		let comments = bugzilla.getComments(bug);
+
 		if (onlyHeader && comments.length > 0) {
 			let date = comments[0].bug_when._text.split(" ")[0];
 			let quote = comments[0].thetext._text.replace(/\r\n/g, "\n");
@@ -446,12 +473,19 @@ var bugzilla = {
 				return "See attachment";
 			});
 
-			let who = bugzilla.who(comments[0].who);
 			if (comments[0].thetext._text.trim().length > 0) {
 				result += quote+"\n\n";
 			}
+			result += "`ECLIPSE-"+bug.bug_id._text+"` ";
+			if (bug.status_whiteboard._text != null && bug.status_whiteboard._text.trim().length > 0) {
+				result += "`POLARSYS-"+bug.status_whiteboard._text+"` ";
+			}
+			result += "`@"+issue.reporter+"` `"+date+"` ";
 
-			result += "`ECLIPSE-"+bug.bug_id._text+"` `POLARSYS-"+bug.status_whiteboard._text+"` `@"+who+"` `"+date+"`";
+			let version = issue.version;
+			if (version != null) {
+				result += "`"+version+"`";
+			}
 			
 		} else {
 			for (c=1; c<comments.length; c++) {
@@ -479,10 +513,14 @@ var bugzilla = {
 			}
 		}
 
+		result = result.replace(/In reply to ([^\n]+) from/g, (match, p1, p2) => {
+			return "In reply to "+bugzilla.trigram(p1)+" from";
+		});
+
 		result = result.replace(/^[\r\n]*/, ""); //Remove initial \n
 		result = result.replace(/[\r\n]*$/, ""); //Remove ending \n
 		
-		result = result.replace(/^\tat/g, "  "); //Remove Build #XX hyperlink
+		result = result.replace(/^\tat/g, "  at"); //exception stackstrace tab to spaces
 		result = result.replace(/uild #(\d+)/g, "uild $1"); //Remove Build #XX hyperlink
 		result = result.replace(/[bB]ug \[?(\d{1,5})\]?/g, "[POLARSYS-$1](https://github.com/search?q=POLARSYS-$1&type=Issues)"); //Add search to Bug #xxx (small number are polarsys issues)
 		result = result.replace(/[bB]ug \[?(\d{6})\]?/g, "[ECLIPSE-$1](https://github.com/search?q=ECLIPSE-$1&type=Issues)"); //Add search to Bug #xxx (6 digits are eclipse ones)
@@ -494,7 +532,6 @@ var bugzilla = {
 		result = result.replace(/\r\n/g, "\n");
 		result = result.replace(/(genie commented )/g, "ci-bot commented ");
 		return result;
-		
 	},
 
 	// for a given attachment, retrieve its new name
@@ -509,21 +546,21 @@ var bugzilla = {
 	isAttachmentImage: function(attachment) {
 		let extension = attachment.filename._text.split(".");
 		extension = extension[extension.length-1].toLowerCase();
-		return extension == "jpg" || extension == "png";
+		return extension == "jpg" || extension == "png" || extension == "gif";
 	},
 
 	//download an attachment to the attachments/ folder
-	downloadAttachment: function(issue, attachment) {
+	downloadAttachment: function(bug, attachment) {
 		return new Promise((resolve, reject) => {
 			let file = bugzilla.attachmentName(attachment);
-			httpquery.downloadFile("bugs.eclipse.org", "/bugs/attachment.cgi?id="+attachment.attachid._text, "attachments/"+file).then(e => resolve(e)).catch(e => reject(e));
+			httpq.downloadFile("bugs.eclipse.org", "/bugs/attachment.cgi?id="+attachment.attachid._text, "attachments/"+file).then(e => resolve(e)).catch(e => reject(e));
 		});
 	},
 
-	//download all attachments for the given issue
-	downloadAttachments: function(issue) {
+	//download all attachments for the given bug
+	downloadAttachments: function(bug) {
 		return new Promise((resolve, reject) => {
-			return Promise.all(issue.attachment.map(m => bugzilla.downloadAttachment(issue, m))).then(e => {
+			return Promise.all(bug.attachment.map(m => bugzilla.downloadAttachment(bug, m))).then(e => {
 				resolve(e.reduce(function (arr, row) {
 					return arr.concat(row);
 				}, []));
@@ -534,230 +571,198 @@ var bugzilla = {
 	}
 }
 
-
-//based on the latests github issues, and the all issues from bugzilla, create the next batch of issues to github
-function createIssues(ghIssues, issues, miles) {
-
+function getNextBugzillaIdFromIssues(ghIssues) {
 	//filter github issues to have only imported ones. (with a ECLIPSE-XXX tag)
 	let previousImportedIssues = ghIssues.filter(x => x.body.match(/`ECLIPSE/g));
-	let nextBugzillaId = previousImportedIssues.length == 0 ? 553888 : Number(previousImportedIssues[0].body.match(/`ECLIPSE-(\d+)/g)[0].split("-")[1]) + 1; //553888 is the first polarsys issue.
-	//let last = ; //ghIssues.length == 0 ? 1 : ghIssues[0].number + 1;
+	let nextBugzillaId = previousImportedIssues.length == 0 ? 553888 : Number(previousImportedIssues[0].body.match(/`ECLIPSE-(\d+)/g)[0].split("-")[1]) + 1; 
+	//553888 is the first polarsys issue, before that there is no capella issues by definition
+	return nextBugzillaId;
+}
 
-	console.log("nextBugzillaId="+nextBugzillaId);
+//retrieve the next bugzilla to created in the configured repository through github.config.repository
+//retrieve the last created github issue and extract `ECLIPSE-xxx` field+1 or 553888
+function getNextBugzillaId() {
+	return new Promise((resolve, reject) => {
+		httpquery.get("api.github.com", `/repos/${github.config.repository}/issues?state=all`).then(ghIssues => {
+			resolve(getNextBugzillaIdFromIssues(ghIssues));
+		}).catch(error => reject(error));
+	});
+}
+
+//based on the latest github issues, and the all issues from bugzilla, create the next batch of issues to github
+function createNextBatchIssues(nextBugzillaId, bugs) {
+
 	//Retrieve the next bugzilla polarsys id we want to create
-	let nextIds = Array(20000).fill(553880).map((e,i)=>i+nextBugzillaId);
+	let nextIds = Array(20000).fill(0).map((e,i)=>i+nextBugzillaId);
 	
-	//Filter to existing issues
-	nextIds = nextIds.filter(id => issues.find(i => i.bug_id != null && ""+i.bug_id._text.trim() == (""+id).trim()) != undefined);
-	
+	//Filter to really existing issues
+	let existingBugs = bugs.filter(i => i.bug_id != null).map(i => i.bug_id._text.trim());
+	nextIds = nextIds.filter(id => existingBugs.includes(""+id));
+
+	//Limit import to the n issues imported as defined in configuration
 	nextIds = nextIds.slice(0, bugzilla.config.count);
-	
 	console.log(bugzilla.config.count);
-	console.log(nextIds.length);
+	console.log("Next bugzilla to import are :");
 	console.log(nextIds);
-	
-	if (true) {
-		nextIds.reduce((p, id) => {
-			return p.then(() => {
-				return createClosedIssue(id, issues, miles); //function returns a promise
-			}).catch(error => {
-				console.log(error);
-			});
-		}, Promise.resolve()).then(()=>{
-			console.log("All files transferred");
-		}).catch(error => {
-			console.log(error);
-		});
-	}
+
+	return nextIds.map(x => createIssue(""+x, bugs));
 }
 
-function createMilestoneIssue(id, issues, miles) {
+function smallWait(issue) {
 	return new Promise((resolve, reject) => {
-		createIssue(id, issues, miles).then(ee => {
-			
-			if (ee != undefined) {
-				let bissue = issues.find(i => i.bug_id != null && ""+i.bug_id._text.trim() == (""+id).trim());
-				let milestone = miles.find(x => x.title==bugzilla.getTargetVersion(bissue));
-				if (milestone != null && milestone != undefined) {
-					setTimeout(function () {		
-						httpqueryc.patch("api.github.com", `/repos/${bugzilla.config.repository}/issues/${ee.number}`, { milestone : milestone.number }).then(ddd => {
-							resolve(ee);
-						}).catch(error => {
-							reject(ee);
-						});
-					}, Math.round(Math.random()*500)+200);
-				} else {
-					resolve(ee);
-				}
-			} else {
-				resolve(ee);
-			}
-		}).catch(error => {
-			reject(error);
-		});
-	});
-}
-
-//create closed issues (same as createIssues, but closed)
-function createClosedIssue(id, issues, miles) {
-	return new Promise((resolve, reject) => {
-		createMilestoneIssue(id, issues, miles).then(ee => {
-			
-			if (ee != undefined) {
-				let labels = ee.labels.map(l => l.name);
-				if (labels.includes("verified") || labels.includes("closed") || labels.includes("resolved") || labels.includes("wontfix")) {
-					
-					setTimeout(function () {
-						httpquery.patch("api.github.com", `/repos/${bugzilla.config.repository}/issues/${ee.number}`, { "state":"closed" }).then(ddd => {
-							console.log("https://bugs.eclipse.org/bugs/show_bug.cgi?id="+id);
-							console.log(ee.url);
-							console.log("close issue "+id+"\n\n");
-							setTimeout(function () {
-								resolve(ee);
-							}, Math.round(Math.random()*500)+200);
-							
-						}).catch(error => {
-							reject(ee);
-						});
-					}, Math.round(Math.random()*500)+200);
-				} else {
-					console.log("https://bugs.eclipse.org/bugs/show_bug.cgi?id="+id);
-					console.log(ee.url);
-					console.log("kept opened for "+id+"\n\n");
-					resolve(ee);
-				}
-			} else {
-				resolve(ee);
-			}
-		}).catch(error => {
-			reject(error);
-		});
-	});
-}
-
-//create locked closed issues (same as createIssues, but locked and closed)
-function createLockedIssue(id, issues, miles) {
-	return new Promise((resolve, reject) => {
-		createClosedIssue(id, issues, miles).then(ee => {
-			if (ee != undefined) {
-				httpquery.put("api.github.com", `/repos/${bugzilla.config.repository}/issues/${ee.number}/lock`, null).then(function aaa(ddd) {
-					resolve(ee);
-				}).catch(error => {
-					reject(ee);
-				});
-			} else {
-				resolve(ee);
-			}
-		}).catch(error => {
-			reject(error);
-		});
-	});
-
-}
-
-//create the given issue based on its polarsys id (whiteboard field)
-function createIssue(id, issues, miles) {
-	let createUnknown = false;
-
-	return new Promise((resolve, reject) => {
-		let bissue = issues.find(i => i.bug_id != null && ""+i.bug_id._text.trim() == (""+id).trim());
-		if (bissue == undefined && !createUnknown) {
-			resolve(undefined);
-			return;
-		}
+		let waitTimer = Math.round(Math.random()*500);
 		setTimeout(function () {
-			console.log(id);
-			
-			if (bissue == undefined) {
-				console.log("create unknown issue");
-				let issue = {
-					"title": "Issue not related to Capella",
-					"labels": []
-				};
-				httpquery.postJson("api.github.com", `/repos/${bugzilla.config.repository}/issues`, issue).then(ee => {
-					resolve(ee);
-				}).catch(ee => {
-					reject(ee);
-				});
-
-			} else {
-				console.log(bissue.bug_id._text);
-				let issue = {
-					"title": bissue.short_desc._text,
-					"labels": []
-				};
-				let comments = {
-					"body": bugzilla.getFullText(bissue, false)
-				};
-				issue.body = bugzilla.getFullText(bissue, true);
-
-				console.log(JSON.stringify(issue, null, " "));
-				
-				httpquery.postJson("api.github.com", `/repos/${bugzilla.config.repository}/issues`, issue).then(ee => {
-					
-					let issue2 = {
-						"labels": []
-					};
-					issue2.labels.push(bugzilla.labelProduct(bissue));
-					issue2.labels.push(bugzilla.labelComponent(bissue));
-					issue2.labels.push(bissue.bug_severity._text);
-					issue2.labels.push(bugzilla.getStatus(bissue));
-					
-					setTimeout(function () {
-					
-						httpqueryc.postJson("api.github.com", `/repos/${bugzilla.config.repository}/issues/${ee.number}`, issue2).then(ee => {
-						
-							//post comments if any. we wait a bit, otherwise labels are logged after comments
-							if (comments.body.length>0) {
-								setTimeout(function () {
-									httpquery.postJson("api.github.com", `/repos/${bugzilla.config.repository}/issues/${ee.number}/comments`, comments).then(ee2 => {
-										resolve(ee);
-									}).catch(ee2 => {
-										reject(ee);
-									});
-								}, Math.round(Math.random()*2000)+670);
-							} else {
-								resolve(ee);
-							}
-						}).catch(error => {
-							reject(error);
-						});
-					
-					}, Math.round(Math.random()*2000)+670);
-					
-				}).catch(error => {
-					reject(error);
-				});
-			}
-		}, Math.round(Math.random()*2000)+940);
+			resolve(issue);
+		}, waitTimer);
 	});
 }
+
+function wait(issue) {
+	return new Promise((resolve, reject) => {
+		let waitTimer = Math.round(Math.random()*2000)+940;
+		setTimeout(function () {
+			resolve(issue);
+		}, waitTimer);
+	});
+}
+
+function publishAll(issues, milestones) {
+	return github.createMilestones(milestones).then(miles => {
+		return consecutive(issues, issue => affectMilestone(issue, miles).then(i => publish(i, miles)));
+	});
+}
+
+function outputAll(issues, milestones) {
+	//console.log(JSON.stringify(issues, null, " "));
+	return github.createMilestones(milestones).then(miles => {
+		return consecutive(issues, issue => affectMilestone(issue, miles).then(i => output(i, miles)));
+	});
+}
+
+function output(issue) {
+	//console.log(JSON.stringify(issue, null, " "));
+
+	console.log(JSON.stringify(
+		{ 	id:issue.bugzillaId, 
+			milestoneId: issue.milestoneId, 
+			body: issue.body, 
+			comments: issue.comments 
+		}, null, " "));
+
+	return Promise.resolve(issue); 
+}
+
+function publish(issue, miles) {
+	Promise.resolve(issue).then(i => {
+		console.log(`${i.bugzillaId}: createGithubIssue`);
+		return github.createGithubIssue(i);
+
+	}).then(wait).then(i => {
+		console.log(`${i.bugzillaId}: addGithubLabels`);
+		return github.addGithubLabels(i);
+
+	}).then(wait).then(i => {
+		console.log(`${i.bugzillaId}: addGithubMilestone`);
+		return github.addGithubMilestone(miles, i);
+
+	}).then(wait).then(i => {
+		console.log(`${i.bugzillaId}: postGithubComments`);
+		return github.postGithubComments(i);
+
+	}).then(wait).then(i => {
+		console.log(`${i.bugzillaId}: closeIssue`);
+		return github.closeIssue(i);
+
+	}).then(smallWait).then(i => {
+		console.log("\nIf you want to quit, its now! (Ctrl+C)\n\n");
+		return Promise.resolve(i);
+
+	}).then(wait).then(wait);
+}
+
+function affectMilestone(issue, miles) {
+	if (issue.milestoneName != null) {
+		let milestone = miles.find(x => x.title == issue.milestoneName);
+		if (milestone != null && milestone != undefined) {
+			issue.milestoneId = milestone.number;
+		}
+	}
+	return Promise.resolve(issue);
+}
+
+//create the given issue based on its bugzillaId
+function createIssue(bugzillaId, bugs) {
+	let bug = bugs.find(i => i.bug_id != null && ""+i.bug_id._text.trim() == (""+bugzillaId).trim());
+	if (bug == undefined) { //if bug doesnt exist in imported bugs, then create nothing, we will skip it
+		return null;
+	}
+
+	let issue = {
+		"bugzillaId": bugzillaId,
+		"title": bug.short_desc._text,
+		"labels": [],
+		"comments": {},
+		"reporter": bugzilla.getReporter(bug)
+	};
+	
+	let version = bugzilla.getTargetVersion(bug);
+	if (version != null) {
+		issue.milestoneName = version;
+	}
+
+	version = bugzilla.getDetectedVersion(bug);
+	if (version != null) {
+		issue.version = version;
+	}
+
+	issue.body = bugzilla.getFullText(bug, true, issue);
+	issue.comments.body = bugzilla.getFullText(bug, false, issue);
+	issue.status = bugzilla.getStatus(bug);
+	issue.product = bugzilla.labelProduct(bug);
+	issue.severity = bug.bug_severity._text;
+	issue.component = bugzilla.labelComponent(bug);
+
+	// add severity
+	issue.labels.push(issue.severity);
+
+	// some components doesn't require a label as these issues will be stored on the dedicated repository
+	let componentsWithoutLabel = [
+		"Capella Studio", "Filtering", "GenDoc HTML", "Groovy", 
+		"Mass VP", "Modes/States VP", "Perfo VP", "Price VP", 
+		"RequirementsVP", "System2Subsystem", "Textual editor",
+		"XML Pivot",
+	];
+	if (!componentsWithoutLabel.includes(issue.component)) {
+		issue.labels.push(issue.component.replace(/[\/ ]/g, "-").toLowerCase());
+	}
+
+	// some status doesn't require a label as we didn't used them. a closed issue with target milestone is enough
+	let statusWithoutLabel = [
+		"resolved", "verified", "new", "assigned", "closed", "fixed", "moved"
+	];
+	if (!statusWithoutLabel.includes(issue.status)) {
+		issue.labels.push(issue.status);
+	}
+
+	// close issues with these statuses
+	let closableStatus = [
+		"verified", "invalid", "worksforme", "fixed", "closed", "wontfix", "resolved", "duplicate", "moved", "not_eclipse"
+	];
+	issue.closeable = closableStatus.includes(issue.status);
+
+	return issue;
+}
+
+
+//--------------------------------------------------
+//--------------------------------------------------
+//--------------------------------------------------
 
 //Load configuration and proceed
 fsquery.read("config.json").then(e => proceed(JSON.parse(e))).catch(e => { console.log(e); });
 
-function proceed(config) {
-	httpquery.user = config.user;
-	httpquery.password = config.password;
+function proceedDownloadAttachments(config) {
 
-	httpqueryc.user = config.userCommiter;
-	httpqueryc.password = config.passwordCommiter;
-
-	github.config = config;
-	bugzilla.config = config;
-	
-	//bugzilla.parse2json("show_bug.cgi-news.xml", "bugs-2020.json");
-	//if (true) return;
-	
-	//List contributors of the given repository
-	/*
-	httpquery.get("api.github.com", '/repos/eclipse/capella/contributors').then(function e(ee) {
-		console.log(ee.map(x => x.login).join(","));
-	});
-	*/
-
-	//Load attachments for a given repository
-	/*
 	fsquery.read(config.bugsFile).then(ee => {
 		
 		const obj = JSON.parse(ee);
@@ -767,107 +772,104 @@ function proceed(config) {
 		issues = issues.filter(x => includedProducts.includes(x.product._text));
 		
 		issues.filter(i => i.attachment != undefined && !Array.isArray(i.attachment)).forEach(i => i.attachment = [i.attachment]); //.filter(i => i.long_desc.length > 7);
-		issues.filter(i => i.attachment != undefined).forEach(i => bugzilla.downloadAttachments(i)); //.filter(i => i.long_desc.length > 7);
-		
-		//fsquery.write("bugs-polarsys-repo.json", result);
-	});*/
-	
+		issues.filter(i => i.attachment != undefined).forEach(i => bugzilla.downloadAttachments(i));
+	});
+}
+
+function proceedCreateIssues(config) {
+
 	//Load issues
 	fsquery.read(config.bugsFile).then(json => {
 		
-		let includedProducts = config.includedProducts; // "Kitalpha"
+		let includedProducts = config.includedProducts; // ["Capella", "Kitalpha"]
 		
-		let includedComponents = config.includedComponents;
-		/*let includedComponents = [
-			"Capella Gitadapter", "Core", "Detachment", "Diagram", "Diff-Merge",
-			"Documentation", "General", "Groovy", "Library",
-			"ModelValidation", "Patterns", "Properties",
-			"Rec-Rpl", "Releng", "Test framework",
-			"Transition", "UI"
-		];*/
-		/*let includedComponents = [
-			"RequirementsVP"
-		];*/
-		/*let includedComponents = [
-			'System2Subsystem'
-		];*/
+		let includedComponents = config.includedComponents; 
+		//[ 
+		//	"Capella Gitadapter", "Capella Studio", "Core", "Detachment", "Diagram", "Diff-Merge",
+		//	"Documentation", "Filtering", "Forum", "GenDoc HTML", "General", "Groovy", "Library",
+		//	"Mass VP", "ModelValidation", "Modes/States VP", "Patterns", "Perfo VP", "Price VP", "Properties",
+		//	"Rec-Rpl", "Releng", "RequirementsVP", "System2Subsystem", "Test framework", "Textual editor",
+		//	"Transition", "UI", "Website", "XML Pivot", "AF and VP", "Build", "CTK", "CTK/Doc" 
+		//];
 
-		//all (unused, just for information)
-		let allComponents2 = [ 
-			"Capella Gitadapter", "Capella Studio", "Core", "Detachment", "Diagram", "Diff-Merge",
-			"Documentation", "Forum", "GenDoc HTML", "General", "Groovy", "Library",
-			"Mass VP", "ModelValidation", "Patterns", "Perfo VP", "Price VP", "Properties",
-			"Rec-Rpl", "Releng", "RequirementsVP", "System2Subsystem", "Test framework",
-			"Transition", "UI", "Website", "XML Pivot" 
-		];
-
-		let issues = JSON.parse(json).bugzilla.bug;
-		console.log(issues.length);
+		let bugs = JSON.parse(json).bugzilla.bug;
 		
-		issues = issues.filter(i => includedProducts.includes(i.product._text));
-		console.log(issues.length);
+		// Filter by product
+		bugs = bugs.filter(i => includedProducts.includes(i.product._text));
 		
-		let allComponents =  Array.from(new Set(issues.map(i => i.component._text).sort()));
+		let allComponents =  Array.from(new Set(bugs.map(i => i.component._text).sort()));
 		console.log("All components");
 		console.log(allComponents);
 		
-		issues = issues.filter(i => includedComponents.includes(i.component._text));
-		console.log(issues.length);
+		// Filter by components
+		bugs = bugs.filter(i => includedComponents.includes(i.component._text));
+		console.log(bugs.length);
 		
-		let products = Array.from(new Set(issues.map(i => i.product._text).sort()));
+		let products = Array.from(new Set(bugs.map(i => i.product._text).sort()));
 		console.log("Keeped products");
 		console.log(products);
 
-		let components =  Array.from(new Set(issues.map(i => i.component._text).sort()));
+		let components =  Array.from(new Set(bugs.map(i => i.component._text).sort()));
 		console.log("Keeped components");
 		console.log(components);
 		
-		let milestones = Array.from(new Set(issues.map(i => bugzilla.getUsedVersions(i)).reduce(concat, []))).sort();
-
-		//create a default array of [description] if empty or if only one description
-		issues.filter(i => i.long_desc == undefined).forEach(i => i.long_desc = 
-		[{
-            "who": {
-				"_attributes": { "name": i.reporter._attributes.name },
-                "_text": i.reporter._text
-            },
-            "bug_when": { "_text": i.creation_ts._text  },
-            "thetext": {  "_text": ""  }
-        }]);
-		issues.filter(i => !Array.isArray(i.long_desc)).forEach(i => i.long_desc = [i.long_desc]); //.filter(i => i.long_desc.length > 7);
-		
-		//create an array of attachments
-		let hasAttachs = issues.filter(i => i.attachment != undefined).length;
-		console.log("Issues with attachments:"+hasAttachs);
-
-		issues.filter(i => i.attachment != undefined && !Array.isArray(i.attachment)).forEach(i => i.attachment = [i.attachment]); //.filter(i => i.long_desc.length > 7);
-		
-		//issues = issues.map(i => i.status_whiteboard._text).sort().join("\n");
-		//console.log(issues);
+		// Compute all versions used in those issues
+		let milestones = Array.from(new Set(bugs.map(i => bugzilla.getUsedVersions(i)).reduce(concat, []))).sort();
 		console.log(milestones);
 
-		//Users
-		//console.log(Array.from(new Set(issues.filter(i => i.long_desc.length > 4).map(i => i.long_desc[4].who._attributes.name+" "+bugzilla.who(i.long_desc[4].who)))));
+		//Update bugs object to ease manipulation afterwards.
 
-		github.createMilestones(milestones).then(miles => {
-			console.log(miles);
-			httpquery.get("api.github.com", `/repos/${github.config.repository}/issues?state=all`)
-				.then( ghIssues => createIssues(ghIssues, issues, miles)).catch(ee => {
-					console.log("error");
-					console.log(ee);
-			});
+			//create a default array of [description] if empty or if only one description
+			bugs.filter(i => i.long_desc == undefined).forEach(i => i.long_desc = 
+			[{
+				"who": {
+					"_attributes": { "name": i.reporter._attributes.name },
+					"_text": i.reporter._text
+				},
+				"bug_when": { "_text": i.creation_ts._text  },
+				"thetext": {  "_text": ""  }
+			}]);
+			bugs.filter(i => !Array.isArray(i.long_desc)).forEach(i => i.long_desc = [i.long_desc]); //.filter(i => i.long_desc.length > 7);
 			
+			//replace bugs.attachment fields to an array even it there is only one attachment. (to ease text replacement process)
+			bugs.filter(i => i.attachment != undefined && !Array.isArray(i.attachment)).forEach(i => i.attachment = [i.attachment]);
+		
+		// find the next bugzilla to import then create and import next batch of issues.
+		getNextBugzillaId().then(nextId => {
+			let toCreate = createNextBatchIssues(nextId, bugs).filter(x => x != null);
+			return publishAll(toCreate, milestones);
+
+		}).then(e => {
+			console.log("All issues are transferred");
+	
 		}).catch(error => {
 			console.log(error);
 		});
-		
+
 	}).catch(error => {
 		console.log(error);
 	});
 
+}
 
+function proceed(config) {
+	httpquery.user = config.user;
+	httpquery.password = config.password;
 
+	httpqueryc.user = config.userCommiter;
+	httpqueryc.password = config.passwordCommiter;
 
+	github.config = config;
+	bugzilla.config = config;	
+	
+	//export as json a xml
+	//bugzilla.parse2json("show_bug.cgi-281120.xml", "show_bug.cgi-281120.json");
+	//if (true) return;
 
+	//Load attachments for a given repository
+	//proceedDownloadAttachments(config);
+	//if (true) return;
+
+	proceedCreateIssues(config);
 };
 
