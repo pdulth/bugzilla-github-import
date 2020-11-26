@@ -365,23 +365,6 @@ var bugzilla = {
 	//Retrieve versions for a bugzilla
 	getUsedVersions: function(bug) {
 		let result = [];
-		let product = bug.product._text;
-		let productId = "";
-
-		let component = bug.component._text;
-		component = component.replace(/VP/g, " ").trim();
-		component = component.replace(/(Perfo|Price|Mass)/g, "Basic VP");
-
-		let addons = [
-			"XML Pivot" , "System2Subsystem", "Filtering", "RequirementsVP", "Perfo VP", "Price VP", "Mass VP", 
-			"Groovy", "GenDoc HTML", "Capella Studio"
-		];
-
-		if (addons.includes(bug.component._text)) {
-			productId = component;
-		} else {
-			productId = product;
-		}
 		if (bug.version != undefined && bug.version._text != undefined) {
 			result.push(bug.version._text);
 		}
@@ -394,7 +377,13 @@ var bugzilla = {
 	}, 
 	
 	getTargetVersion: function(bug) {
-		return "v"+bug.target_milestone._text;
+		let version = "v"+bug.target_milestone._text;
+		if (version == "---") {
+			if (bug.product._text == "Kitalpha") {
+				version = "v"+bug.version._text;
+			}
+		}
+		return version;
 	},
 
 	//retrieve the status (mix between status and resolution fields)
@@ -495,10 +484,11 @@ var bugzilla = {
 		
 		result = result.replace(/^\tat/g, "  "); //Remove Build #XX hyperlink
 		result = result.replace(/uild #(\d+)/g, "uild $1"); //Remove Build #XX hyperlink
-		result = result.replace(/[bB]ug \[?(\d+)\]?/g, "[POLARSYS-$1](https://github.com/search?q=POLARSYS-$1&type=Issues)"); //Add search to Bug #xxx
-		result = result.replace(/https:\/\/bugs.eclipse.org\/bugs\/show_bug.cgi\?id=([^\n]+)/g, "[ECLIPSE-$1](https://github.com/search?q=ECLIPSE-$1&type=Issues)"); //](https://github.com/search?q=$1&type=Issues)
-		result = result.replace(/https:\/\/polarsys.org\/bugs\/show_bug.cgi\?id=([^\n]+)/g, "[POLARSYS-$1](https://github.com/search?q=POLARSYS-$1&type=Issues)"); //](https://github.com/search?q=$1&type=Issues)
-		result = result.replace(/http:\/\/git.polarsys.org\/c\/(kitalpha|capella)\/([^\.]+).git\/commit\/\?id=([^\n]+)/g, "[$3](https://github.com/search?q=$3&type=Commits)");
+		result = result.replace(/[bB]ug \[?(\d{1,5})\]?/g, "[POLARSYS-$1](https://github.com/search?q=POLARSYS-$1&type=Issues)"); //Add search to Bug #xxx (small number are polarsys issues)
+		result = result.replace(/[bB]ug \[?(\d{6})\]?/g, "[ECLIPSE-$1](https://github.com/search?q=ECLIPSE-$1&type=Issues)"); //Add search to Bug #xxx (6 digits are eclipse ones)
+		result = result.replace(/https?:\/\/bugs.eclipse.org\/bugs\/show_bug.cgi\?id=([^\n]+)/g, "[ECLIPSE-$1](https://github.com/search?q=ECLIPSE-$1&type=Issues)");
+		result = result.replace(/https?:\/\/polarsys.org\/bugs\/show_bug.cgi\?id=([^\n]+)/g, "[POLARSYS-$1](https://github.com/search?q=POLARSYS-$1&type=Issues)")
+		result = result.replace(/https?:\/\/git.polarsys.org\/c\/(kitalpha|capella)\/([^\.]+).git\/commit\/\?id=([^\n]+)/g, "[$3](https://github.com/search?q=$3&type=Commits)");
 		result = result.replace(/Gerrit change https:\/\/git.polarsys.org\/r\/\d+ was m/g, "M");
 		result = result.replace(/(I[0-9a-z]{40})/g, "[$1](https://github.com/search?q=$1&type=Commits)");
 		result = result.replace(/\r\n/g, "\n");
@@ -566,22 +556,19 @@ function createIssues(ghIssues, issues, miles) {
 	console.log(nextIds.length);
 	console.log(nextIds);
 	
-	
 	if (true) {
-	nextIds.reduce((p, theFile) => {
-		return p.then(() => {
-			return createClosedIssue(theFile, issues, miles); //function returns a promise
+		nextIds.reduce((p, id) => {
+			return p.then(() => {
+				return createClosedIssue(id, issues, miles); //function returns a promise
+			}).catch(error => {
+				console.log(error);
+			});
+		}, Promise.resolve()).then(()=>{
+			console.log("All files transferred");
 		}).catch(error => {
 			console.log(error);
 		});
-	}, Promise.resolve()).then(()=>{
-		console.log("All files transferred");
-	}).catch(error => {
-		console.log(error);
-	});
-	
 	}
-
 }
 
 function createMilestoneIssue(id, issues, miles) {
