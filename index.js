@@ -296,7 +296,7 @@ var github = {
 					reject(error);
 				});
 			} else {
-				resolve(ee);
+				resolve(issue);
 			}
 		});
 	},
