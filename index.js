@@ -491,7 +491,7 @@ var bugzilla = {
 			if (bug.status_whiteboard._text != null && bug.status_whiteboard._text.trim().length > 0) {
 				result += "`POLARSYS-"+bug.status_whiteboard._text+"` ";
 			}
-			result += "`@"+issue.reporter+"` `"+date+"` ";
+			result += "`"+issue.reporter+"` `"+date+"` ";
 
 			let version = issue.version;
 			if (version != null) {
@@ -738,7 +738,7 @@ function createIssue(bugzillaId, bugs) {
 
 	// some components doesn't require a label as these issues will be stored on the dedicated repository
 	let componentsWithoutLabel = [
-		"Capella Studio", "Filtering", "GenDoc HTML", "Groovy", 
+		"Capella Studio", "Filtering", "Cybersecurity", "GenDoc HTML", "Groovy", 
 		"Mass VP", "Modes/States VP", "Perfo VP", "Price VP", 
 		"RequirementsVP", "System2Subsystem", "Textual editor",
 		"XML Pivot",
