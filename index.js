@@ -621,7 +621,7 @@ function createNextBatchIssues(nextBugzillaId, bugs) {
 
 function smallWait(issue) {
 	return new Promise((resolve, reject) => {
-		let waitTimer = Math.round(Math.random()*500);
+		let waitTimer = Math.round(Math.random()*300);
 		setTimeout(function () {
 			resolve(issue);
 		}, waitTimer);
@@ -630,7 +630,7 @@ function smallWait(issue) {
 
 function wait(issue) {
 	return new Promise((resolve, reject) => {
-		let waitTimer = Math.round(Math.random()*2000)+940;
+		let waitTimer = Math.round(Math.random()*1000)+940;
 		setTimeout(function () {
 			resolve(issue);
 		}, waitTimer);
