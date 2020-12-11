@@ -431,17 +431,18 @@ var bugzilla = {
 	trigram: function(user) {
 		user = user.toLowerCase().replace(/ /g, ".");
 		if (user == "nobody.-.feel.free.to.take.it") return "anonymous";
+		if (user == "polarsys.webmaster") return "webmaster";
 		if (user == "eclipse.webmaster") return "webmaster";
 		if (user == "polarsys.genie") return "ci-bot";
 		if (user == "eclipse.genie") return "ci-bot";
 
-		if (user.indexOf(".")>0) {
-			user = user.split(".")[0][0]+user.split(".")[1].substring(0, 2);
-		}
+		//if (user.indexOf(".")>0) {
+		//	user = user.split(".")[0][0]+user.split(".")[1].substring(0, 2);
+		//}
 		//Some custom trigram
-		if (user == "mtu") user = "tto";
-		if (user == "gde") user = "sde";
-		if (user == "cba") user = "cbd";
+		//if (user == "mtu") user = "tto";
+		//if (user == "gde") user = "sde";
+		//if (user == "cba") user = "cbd";
 		return user;
 	},
 
