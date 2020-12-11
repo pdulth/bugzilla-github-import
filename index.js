@@ -375,7 +375,7 @@ var bugzilla = {
 	}, 
 	
 	getDetectedVersion: function(bug) {
-		let version = bug.target_milestone._text;
+		let version = bug.version._text;
 		if (version == "unspecified" || version == "---") {
 			return null;
 		}
