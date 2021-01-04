@@ -729,9 +729,8 @@ function createIssue(bugzillaId, bugs) {
 	// some components doesn't require a label as these issues will be stored on the dedicated repository
 	let componentsWithoutLabel = [
 		"Capella Studio", "Filtering", "Cybersecurity", "GenDoc HTML", "Groovy", 
-		"Mass VP", "Modes/States VP", "Perfo VP", "Price VP", 
-		"RequirementsVP", "System2Subsystem", "Textual editor",
-		"XML Pivot",
+		"Modes/States VP", "RequirementsVP", "System2Subsystem", "Textual editor",
+		"XML Pivot"
 	];
 	if (!componentsWithoutLabel.includes(issue.component)) {
 		issue.labels.push(issue.component.replace(/[\/ ]/g, "-").toLowerCase());
