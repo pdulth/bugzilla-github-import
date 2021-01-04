@@ -477,15 +477,16 @@ var bugzilla = {
 			if (comments[0].thetext._text.trim().length > 0) {
 				result += quote+"\n\n";
 			}
-			result += "`ECLIPSE-"+bug.bug_id._text+"` ";
 			if (bug.status_whiteboard._text != null && bug.status_whiteboard._text.trim().length > 0) {
-				result += "`POLARSYS-"+bug.status_whiteboard._text+"` ";
+				result += "`🆔 ECLIPSE-"+bug.bug_id._text+" / POLARSYS-"+bug.status_whiteboard._text+"` ";
+			} else {
+				result += "`🆔 ECLIPSE-"+bug.bug_id._text+"` ";
 			}
-			result += "`"+issue.reporter+"` `"+date+"` ";
+			result += "`👷 "+issue.reporter+"` `📅 "+date+"` ";
 
 			let version = issue.version;
 			if (version != null) {
-				result += "`"+version+"`";
+				result += "`🔎 "+version+"`";
 			}
 			
 		} else {
