@@ -523,8 +523,8 @@ var bugzilla = {
 		
 		result = result.replace(/^\tat/g, "  at"); //exception stackstrace tab to spaces
 		result = result.replace(/uild #(\d+)/g, "uild $1"); //Remove Build #XX hyperlink
-		result = result.replace(/[bB]ug \[?(\d{1,5})\]?/g, "[POLARSYS-$1](https://github.com/search?q=POLARSYS-$1&type=Issues)"); //Add search to Bug #xxx (small number are polarsys issues)
 		result = result.replace(/[bB]ug \[?(\d{6})\]?/g, "[ECLIPSE-$1](https://github.com/search?q=ECLIPSE-$1&type=Issues)"); //Add search to Bug #xxx (6 digits are eclipse ones)
+		result = result.replace(/[bB]ug \[?(\d{1,5})\]?/g, "[POLARSYS-$1](https://github.com/search?q=POLARSYS-$1&type=Issues)"); //Add search to Bug #xxx (small number are polarsys issues)
 		result = result.replace(/https?:\/\/bugs.eclipse.org\/bugs\/show_bug.cgi\?id=([^\n]+)/g, "[ECLIPSE-$1](https://github.com/search?q=ECLIPSE-$1&type=Issues)");
 		result = result.replace(/https?:\/\/polarsys.org\/bugs\/show_bug.cgi\?id=([^\n]+)/g, "[POLARSYS-$1](https://github.com/search?q=POLARSYS-$1&type=Issues)")
 		result = result.replace(/https?:\/\/git.polarsys.org\/c\/(kitalpha|capella)\/([^\.]+).git\/commit\/\?id=([^\n]+)/g, "[$3](https://github.com/search?q=$3&type=Commits)");
