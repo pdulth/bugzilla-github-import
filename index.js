@@ -307,11 +307,13 @@ var github = {
 
 	closeIssue: function(issue) {
 		return new Promise((resolve, reject) => {
+			let imported = { bug: "https://bugs.eclipse.org/bugs/show_bug.cgi?id="+issue.bugzillaId, issue: issue.url };
+			published.push( imported );
+			console.log(imported);
+
 			if (issue.closeable) {
 				httpquery.patch("api.github.com", `/repos/${bugzilla.config.repository}/issues/${issue.githubId}`, { "state": "closed" }).then(ee => {
 					issue.state = "closed";
-					console.log("https://bugs.eclipse.org/bugs/show_bug.cgi?id="+issue.bugzillaId);
-					console.log(issue.url);
 					console.log("close issue "+issue.bugzillaId+"\n\n");
 					resolve(issue);
 					
@@ -663,6 +665,8 @@ function outputAll(issues, milestones) {
 	});
 }
 
+let published = [];
+
 function output(issue) {
 	//console.log(JSON.stringify(issue, null, " "));
 
@@ -881,9 +885,12 @@ function proceedCreateIssues(config) {
 
 		}).then(e => {
 			console.log("All issues are transferred");
+			fsquery.write("created.json", JSON.stringify(published, null, " "));
 	
 		}).catch(error => {
 			console.log(error);
+			fsquery.write("created.json", JSON.stringify(published, null, " "));
+	
 		});
 
 	}).catch(error => {
@@ -891,6 +898,20 @@ function proceedCreateIssues(config) {
 	});
 
 }
+
+process.on('SIGINT', function() {
+	console.log("Caught SIGINT signal");
+	fsquery.write("created.json", JSON.stringify(published, null, " ")).then(e => {
+		process.exit();
+	});
+});
+
+process.on('SIGTERM', function() {
+	console.log("Caught SIGTERM signal");
+	fsquery.write("created.json", JSON.stringify(published, null, " ")).then(e => {
+		process.exit();
+	});
+});
 
 function proceed(config) {
 	httpquery.user = config.user;
