@@ -447,20 +447,27 @@ var bugzilla = {
 	},
 	
 	getComments: function(bug) {
-		let comments = bug.long_desc.filter(x => x.thetext != undefined && x.thetext._text != undefined);
-		comments = comments.filter(x => !x.thetext._text.startsWith("New Gerrit change created"));
+		let comments = bug.long_desc;
+		let hasMerged = comments.filter(x => x.thetext._text.startsWith("Gerrit change "));
+		let gerritRef = comments.filter(x => x.thetext._text.startsWith("New Gerrit change created"));
+		
+		// If there is useful comments, remove broken ones.
+		if (hasMerged.length > 0 && gerritRef.length > 0) {
+			comments = comments.filter(x => !x.thetext._text.startsWith("New Gerrit change created"));
+		}
 		return comments;
 	},
-
+	
+	//ticket without first comment 554251
+	//ticket with gerrit ref, no git ref 555061
+	
 	getReporter: function(bug) {
 		return bugzilla.who(bug.reporter);
 	},
 
-	getFullText: function(bug, onlyHeader, issue) {
-		let result = "";
-		let comments = bugzilla.getComments(bug);
+	getFullTextComments: function(bug, onlyHeader, issue, comments) {
 		let dateCreation = bug.creation_ts._text.split(" ")[0];
-
+		let result = "";
 		if (onlyHeader) {
 			
 			if (comments.length > 0) {
@@ -531,6 +538,7 @@ var bugzilla = {
 		result = result.replace(/[bB]ug \[?(\d{6})\]?/g, "[ECLIPSE-$1](https://github.com/search?q=ECLIPSE-$1&type=Issues)"); //Add search to Bug #xxx (6 digits are eclipse ones)
 		result = result.replace(/[bB]ug \[?(\d{1,5})\]?/g, "[POLARSYS-$1](https://github.com/search?q=POLARSYS-$1&type=Issues)"); //Add search to Bug #xxx (small number are polarsys issues)
 		result = result.replace(/https?:\/\/bugs.eclipse.org\/bugs\/show_bug.cgi\?id=([^\n]+)/g, "[ECLIPSE-$1](https://github.com/search?q=ECLIPSE-$1&type=Issues)");
+		result = result.replace(/https?:\/\/bugs.polarsys.org\/show_bug.cgi\?id=([^\n]+)/g, "[POLARSYS-$1](https://github.com/search?q=POLARSYS-$1&type=Issues)");
 		result = result.replace(/https?:\/\/polarsys.org\/bugs\/show_bug.cgi\?id=([^\n]+)/g, "[POLARSYS-$1](https://github.com/search?q=POLARSYS-$1&type=Issues)")
 		result = result.replace(/https?:\/\/git.polarsys.org\/c\/(kitalpha|capella)\/([^\.]+).git\/commit\/\?id=([^\n]+)/g, "[$3](https://github.com/search?q=$3&type=Commits)");
 		result = result.replace(/Gerrit change https:\/\/git.polarsys.org\/r\/\d+ was m/g, "M");
@@ -538,6 +546,12 @@ var bugzilla = {
 		result = result.replace(/\r\n/g, "\n");
 		result = result.replace(/(genie commented )/g, "ci-bot commented ");
 		return result;
+	},
+	
+	getFullText: function(bug, onlyHeader, issue) {
+		let result = "";
+		let comments = bugzilla.getComments(bug);
+		return bugzilla.getFullTextComments(bug, onlyHeader, issue, comments);
 	},
 
 	// for a given attachment, retrieve its new name
@@ -639,7 +653,6 @@ function publishAll(issues, milestones) {
 }
 
 function outputAll(issues, milestones) {
-	//console.log(JSON.stringify(issues, null, " "));
 	return github.createMilestones(milestones).then(miles => {
 		return consecutive(issues, issue => affectMilestone(issue, miles).then(i => output(i, miles)));
 	});
@@ -834,7 +847,20 @@ function proceedCreateIssues(config) {
 				"bug_when": { "_text": i.creation_ts._text  },
 				"thetext": {  "_text": ""  }
 			}]);
+			
 			bugs.filter(i => !Array.isArray(i.long_desc)).forEach(i => i.long_desc = [i.long_desc]); //.filter(i => i.long_desc.length > 7);
+			
+			// Set an empty description. Better than nothing
+			bugs.forEach(i => {
+				i.long_desc.forEach(c => {
+					if (c.thetext == undefined) {
+						c.thetext = {};
+					}
+					if (c.thetext._text == undefined) {
+						c.thetext._text = "";
+					}
+				});
+			});
 			
 			//replace bugs.attachment fields to an array even it there is only one attachment. (to ease text replacement process)
 			bugs.filter(i => i.attachment != undefined && !Array.isArray(i.attachment)).forEach(i => i.attachment = [i.attachment]);
@@ -842,6 +868,7 @@ function proceedCreateIssues(config) {
 		// find the next bugzilla to import then create and import next batch of issues.
 		getNextBugzillaId().then(nextId => {
 			let toCreate = createNextBatchIssues(nextId, bugs).filter(x => x != null);
+			//return outputAll(toCreate, milestones);
 			return publishAll(toCreate, milestones);
 
 		}).then(e => {
