@@ -459,30 +459,34 @@ var bugzilla = {
 	getFullText: function(bug, onlyHeader, issue) {
 		let result = "";
 		let comments = bugzilla.getComments(bug);
+		let dateCreation = bug.creation_ts._text.split(" ")[0];
 
-		if (onlyHeader && comments.length > 0) {
-			let date = comments[0].bug_when._text.split(" ")[0];
-			let quote = comments[0].thetext._text.replace(/\r\n/g, "\n");
+		if (onlyHeader) {
+			
+			if (comments.length > 0) {
+				let quote = comments[0].thetext._text.replace(/\r\n/g, "\n");
+				
+				quote = quote.replace(/Created attachment (\d*)/g, (match, p1, p2) => {
+					let attachment=bug.attachment.filter(a => a.date._text == comments[0].bug_when._text)[0];
+					if (attachment != null) {
+						let file = bugzilla.attachmentName(attachment);
+						let image = bugzilla.isAttachmentImage(attachment) ? "!": "Attachment: ";
+						return `${image}[${attachment.filename._text}](https://raw.githubusercontent.com/wiki/eclipse/capella/attachments/${file})`;
+					}
+					return "See attachment";
+				});
 
-			quote = quote.replace(/Created attachment (\d*)/g, (match, p1, p2) => {
-				let attachment=bug.attachment.filter(a => a.date._text == comments[0].bug_when._text)[0];
-				if (attachment != null) {
-					let file = bugzilla.attachmentName(attachment);
-					let image = bugzilla.isAttachmentImage(attachment) ? "!": "Attachment: ";
-					return `${image}[${attachment.filename._text}](https://raw.githubusercontent.com/wiki/eclipse/capella/attachments/${file})`;
+				if (comments[0].thetext._text.trim().length > 0) {
+					result += quote+"\n\n";
 				}
-				return "See attachment";
-			});
-
-			if (comments[0].thetext._text.trim().length > 0) {
-				result += quote+"\n\n";
 			}
+			
 			if (bug.status_whiteboard._text != null && bug.status_whiteboard._text.trim().length > 0) {
 				result += "`🆔 ECLIPSE-"+bug.bug_id._text+" / POLARSYS-"+bug.status_whiteboard._text+"` ";
 			} else {
 				result += "`🆔 ECLIPSE-"+bug.bug_id._text+"` ";
 			}
-			result += "`👷 "+issue.reporter+"` `📅 "+date+"` ";
+			result += "`👷 "+issue.reporter+"` `📅 "+dateCreation+"` ";
 
 			let version = issue.version;
 			if (version != null) {
