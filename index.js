@@ -603,8 +603,8 @@ var bugzilla = {
 
 function getNextBugzillaIdFromIssues(ghIssues) {
 	//filter github issues to have only imported ones. (with a ECLIPSE-XXX tag)
-	let previousImportedIssues = ghIssues.filter(x => x.body.match(/`ECLIPSE/g));
-	let nextBugzillaId = previousImportedIssues.length == 0 ? 553888 : Number(previousImportedIssues[0].body.match(/`ECLIPSE-(\d+)/g)[0].split("-")[1]) + 1; 
+	let previousImportedIssues = ghIssues.filter(x => x.body.match(/`🆔 ECLIPSE/g));
+	let nextBugzillaId = previousImportedIssues.length == 0 ? 553888 : Number(previousImportedIssues[0].body.match(/`🆔 ECLIPSE-(\d+)/g)[0].split("-")[1]) + 1; 
 	//553888 is the first polarsys issue, before that there is no capella issues by definition
 	return nextBugzillaId;
 }
@@ -631,6 +631,7 @@ function createNextBatchIssues(nextBugzillaId, bugs) {
 
 	//Limit import to the n issues imported as defined in configuration
 	nextIds = nextIds.slice(0, bugzilla.config.count);
+	console.log("Expected imported issues from config :");
 	console.log(bugzilla.config.count);
 	console.log("Next bugzilla to import are :");
 	console.log(nextIds);
@@ -831,6 +832,7 @@ function proceedCreateIssues(config) {
 		
 		// Filter by components
 		bugs = bugs.filter(i => includedComponents.includes(i.component._text));
+		console.log("Count of issues to import :");
 		console.log(bugs.length);
 		
 		let products = Array.from(new Set(bugs.map(i => i.product._text).sort()));
@@ -877,6 +879,8 @@ function proceedCreateIssues(config) {
 		
 		// find the next bugzilla to import then create and import next batch of issues.
 		getNextBugzillaId().then(nextId => {
+			console.log("Next bugzilla id is :");
+			console.log(nextId);
 			let toCreate = createNextBatchIssues(nextId, bugs).filter(x => x != null);
 			//return outputAll(toCreate, milestones);
 			return publishAll(toCreate, milestones);
