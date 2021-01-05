@@ -420,6 +420,10 @@ var bugzilla = {
 	
 	trigram: function(user) {
 		user = user.toLowerCase().replace(/ /g, ".");
+		user = user.replace(/ã©/g, "e");
+		user = user.replace(/ã¨/g, "e");
+		user = user.replace(/ãª/g, "e");
+		
 		if (user == "nobody.-.feel.free.to.take.it") return "anonymous";
 		if (user == "polarsys.webmaster") return "webmaster";
 		if (user == "eclipse.webmaster") return "webmaster";
@@ -899,7 +903,7 @@ function proceed(config) {
 	bugzilla.config = config;	
 	
 	//export as json a xml
-	//bugzilla.parse2json("show_bug.cgi-281120.xml", "show_bug.cgi-281120.json");
+	//bugzilla.parse2json("show_bug.cgi.xml", "bugs-polarsys.json");
 	//if (true) return;
 
 	//Load attachments for a given repository
