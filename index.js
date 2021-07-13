@@ -610,7 +610,8 @@ var bugzilla = {
 function getNextBugzillaIdFromIssues(ghIssues) {
 	//filter github issues to have only imported ones. (with a ECLIPSE-XXX tag)
 	let previousImportedIssues = ghIssues.filter(x => x.body.match(/`🆔 ECLIPSE/g));
-	let nextBugzillaId = previousImportedIssues.length == 0 ? 553888 : Number(previousImportedIssues[0].body.match(/`🆔 ECLIPSE-(\d+)/g)[0].split("-")[1]) + 1; 
+	let nextBugzillaId = previousImportedIssues.length == 0 ? 219050 : Number(previousImportedIssues[0].body.match(/`🆔 ECLIPSE-(\d+)/g)[0].split("-")[1]) + 1; 
+	//219050 is the first modelling issue, before that there is no modelling issues by definition
 	//553888 is the first polarsys issue, before that there is no capella issues by definition
 	return nextBugzillaId;
 }
@@ -629,7 +630,7 @@ function getNextBugzillaId() {
 function createNextBatchIssues(nextBugzillaId, bugs) {
 
 	//Retrieve the next bugzilla polarsys id we want to create
-	let nextIds = Array(20000).fill(0).map((e,i)=>i+nextBugzillaId);
+	let nextIds = Array(400000).fill(0).map((e,i)=>i+nextBugzillaId);
 	
 	//Filter to really existing issues
 	let existingBugs = bugs.filter(i => i.bug_id != null).map(i => i.bug_id._text.trim());
@@ -734,7 +735,7 @@ function createIssue(bugzillaId, bugs) {
 	if (bug == undefined) { //if bug doesnt exist in imported bugs, then create nothing, we will skip it
 		return null;
 	}
-
+	console.log(bugzillaId);
 	let issue = {
 		"bugzillaId": bugzillaId,
 		"title": bug.short_desc._text,
@@ -934,7 +935,7 @@ function proceed(config) {
 	bugzilla.config = config;	
 	
 	//export as json a xml
-	//bugzilla.parse2json("show_bug.cgi.xml", "bugs-polarsys.json");
+	//bugzilla.parse2json("show_bug.cgi.xml", "bugs-modeling.json");
 	//if (true) return;
 
 	//Load attachments for a given repository
