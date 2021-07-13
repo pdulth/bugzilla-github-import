@@ -427,7 +427,10 @@ var bugzilla = {
 
 	//retrieve a trigram of the given user from bugzilla
 	who: function(who) {
-		return bugzilla.trigram(who._attributes.name);
+		if (who._attributes && who._attributes.name) {
+			return bugzilla.trigram(who._attributes.name);
+		}
+		return bugzilla.trigram(who._text);
 	},
 	
 	trigram: function(user) {
