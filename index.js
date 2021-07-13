@@ -388,7 +388,7 @@ var bugzilla = {
 		let version = bug.target_milestone._text;
 		if (version == "unspecified" || version == "---") {
 			// If there is no target milestone, some products and components are using the version field instead.
-			let productsWithVersionAsTarget = [ "Kitalpha" ];
+			let productsWithVersionAsTarget = [ "Kitalpha", "Amalgam", "EMF.EGF", "EMF.Diffmerge" ];
 			let componentsWithVersionAsTarget = [ "Capella Studio", "GenDoc HTML", "Mass VP", "Perfo VP", "Price VP" ];
 
 			if (bug.bug_status._text == "RESOLVED" || bug.bug_status._text == "VERIFIED" || bug.bug_status._text == "CLOSED") {
