@@ -695,7 +695,7 @@ function output(issue) {
 }
 
 function publish(issue, miles) {
-	Promise.resolve(issue).then(i => {
+	return Promise.resolve(issue).then(i => {
 		console.log(`${i.bugzillaId}: createGithubIssue`);
 		return github.createGithubIssue(i);
 
