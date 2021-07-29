@@ -560,7 +560,9 @@ var bugzilla = {
 		result = result.replace(/https?:\/\/bugs.polarsys.org\/show_bug.cgi\?id=([^\n]+)/g, "[POLARSYS-$1](https://github.com/search?q=POLARSYS-$1&type=Issues)");
 		result = result.replace(/https?:\/\/polarsys.org\/bugs\/show_bug.cgi\?id=([^\n]+)/g, "[POLARSYS-$1](https://github.com/search?q=POLARSYS-$1&type=Issues)")
 		result = result.replace(/https?:\/\/git.polarsys.org\/c\/(kitalpha|capella)\/([^\.]+).git\/commit\/\?id=([^\n]+)/g, "[$3](https://github.com/search?q=$3&type=Commits)");
+		result = result.replace(/https?:\/\/git.eclipse.org\/c\/(amalgam|egf)\/([^\.]+).git\/commit\/\?id=([^\n]+)/g, "[$3](https://github.com/search?q=$3&type=Commits)");
 		result = result.replace(/Gerrit change https:\/\/git.polarsys.org\/r\/\d+ was m/g, "M");
+		result = result.replace(/Gerrit change https:\/\/git.eclipse.org\/r\/\d+ was m/g, "M");
 		result = result.replace(/(I[0-9a-z]{40})/g, "[$1](https://github.com/search?q=$1&type=Commits)");
 		result = result.replace(/\r\n/g, "\n");
 		result = result.replace(/(genie commented )/g, "ci-bot commented ");
